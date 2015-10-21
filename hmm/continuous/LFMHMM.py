@@ -2,6 +2,7 @@ __author__ = 'diego'
 
 from hmm._BaseHMM import _BaseHMM
 from hmm.lfm2kernel import SecondOrderLFMKernel
+from scipy import stats
 import numpy as np
 
 
@@ -35,7 +36,8 @@ class LFMHMM(_BaseHMM):
         self.lengthscales = lengthscales
 
     def generate_observations(self):
-        output = np.zeros(0, dtype=self.precision)
+        output = np.zeros((self.segments, self.locations_per_segment),
+                          dtype=self.precision)
         initial_state = np.nonzero(np.random.multinomial(1, self.pi))[0][0]
         hidden_states = [initial_state]
         for x in xrange(1, self.segments):
@@ -43,14 +45,40 @@ class LFMHMM(_BaseHMM):
                 1, self.A[hidden_states[-1]]))[0][0])
         for i in xrange(len(hidden_states)):
             state = hidden_states[i]
-            B = np.asarray(self.spring_cons[state])
-            C = np.asarray(self.damper_cons[state])
-            l = self.lengthscales[state]
-            print state, B, C, l
-            # TODO: compute the GP output with B, C, l and sample_locations
-        return hidden_states
+            cov = self.get_cov_function(state, i)
+            realization = np.random.multivariate_normal(
+                mean=np.zeros(cov.shape[0]), cov=cov)
+            output[i, :] = realization
+        return output
 
 
+    def get_cov_function(self, hidden_state, segment_idx):
+        B = np.asarray(self.spring_cons[hidden_state])
+        C = np.asarray(self.damper_cons[hidden_state])
+        l = self.lengthscales[hidden_state]
+        lps = self.locations_per_segment
+        ts = self.sample_locations[segment_idx * lps: (segment_idx + 1) * lps]
+        cov = SecondOrderLFMKernel.K(B, C, l, ts.reshape((-1, 1)))
+        return cov
+
+    def _mapB(self,observations):
+        '''
+        Required implementation for _mapB. Refer to _BaseHMM for more details.
+        '''
+
+        numbers_of_segments = len(observations)
+
+        self.B_map = np.zeros((self.n, numbers_of_segments),
+                              dtype=self.precision)
+
+        # strange behavior found between numpy and stats. See below.
+
+        for j in xrange(self.n):
+            for t in xrange(numbers_of_segments):
+                cov = self.get_cov_function(j, t)
+                self.B_map[j][t] = stats.multivariate_normal.pdf(
+                    observations[t], np.zeros(cov.shape[0]), cov,
+                    True) # Allowing singularity in cov. This is weird
 
 
 

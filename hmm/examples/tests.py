@@ -98,12 +98,13 @@ def test_discrete():
     pi = pitmp / sum(pitmp)
     
     hmm2 = DiscreteHMM(4,4,a,b,pi,init_type='user',precision=numpy.longdouble,verbose=True)
-    hmm2.train(numpy.array(ob5*10),100)
+    #hmm2.train(numpy.array(ob5*10),100)
+    hmm2.ComputeGammaUsingAlphaAndBeta(numpy.array(ob5*10))
     print "Pi",hmm2.pi
     print "A",hmm2.A
     print "B", hmm2.B
     
     
 #test_simple()
-test_rand()
-#test_discrete()
+#test_rand()
+test_discrete()

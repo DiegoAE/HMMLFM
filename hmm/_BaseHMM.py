@@ -46,52 +46,56 @@ class _BaseHMM(object):
             self._mapB(observations)
         
         alpha = self._calcalpha(observations)
-        return numpy.log(sum(alpha[-1]))
+        # TODO In order to avoid overflow use the log trick with the c_n's.
+        return numpy.log(sum(alpha[-1])) # TODO This is no longer the case. FIX.
+
     
     def _calcalpha(self,observations):
         '''
         Calculates 'alpha' the forward variable.
-    
-        The alpha variable is a numpy array indexed by time, then state (TxN).
-        alpha[t][i] = the probability of being in state 'i' after observing the 
-        first t symbols.
-        '''        
-        alpha = numpy.zeros((len(observations),self.n),dtype=self.precision)
-        
-        # init stage - alpha_1(x) = pi(x)b_x(O1)
+
+        '''
+        mi_alpha = numpy.zeros((len(observations), self.n), dtype=self.precision)
+        scaled_alpha = numpy.zeros((len(observations),self.n),
+                                   dtype=self.precision)
+
+        self.scaling_c = numpy.zeros(len(observations))
+
         for x in xrange(self.n):
-            alpha[0][x] = self.pi[x]*self.B_map[x][0]
-        
+            scaled_alpha[0][x] = self.pi[x]*self.B_map[x][0]
+
+        self.scaling_c[0] = scaled_alpha[0][:].sum()
+        scaled_alpha[0][:] *= (1.0/self.scaling_c[0])
+        # acum_prod = 1.0 # this constant goes quickly to zero
         # induction
         for t in xrange(1,len(observations)):
             for j in xrange(self.n):
                 for i in xrange(self.n):
-                    alpha[t][j] += alpha[t-1][i]*self.A[i][j]
-                alpha[t][j] *= self.B_map[j][t]
-                
-        return alpha
+                    scaled_alpha[t][j] += scaled_alpha[t-1][i]*self.A[i][j]
+                scaled_alpha[t][j] *= self.B_map[j][t]
+            self.scaling_c[t] = scaled_alpha[t][:].sum()
+            scaled_alpha[t][:] *= (1.0/self.scaling_c [t])
+            # acum_prod *= scaling_c[t]
+            # mi_alpha[t][:] = scaled_alpha[t][:] * acum_prod
+        return scaled_alpha
 
     def _calcbeta(self,observations):
         '''
-        Calculates 'beta' the backward variable.
-        
-        The beta variable is a numpy array indexed by time, then state (TxN).
-        beta[t][i] = the probability of being in state 'i' and then observing the
-        symbols from t+1 to the end (T).
         '''        
-        beta = numpy.zeros((len(observations),self.n),dtype=self.precision)
+        scaled_beta = numpy.zeros((len(observations),self.n),dtype=self.precision)
+
         
         # init stage
         for s in xrange(self.n):
-            beta[len(observations)-1][s] = 1.
+            scaled_beta[len(observations)-1][s] = 1.
         
         # induction
         for t in xrange(len(observations)-2,-1,-1):
             for i in xrange(self.n):
                 for j in xrange(self.n):
-                    beta[t][i] += self.A[i][j]*self.B_map[j][t+1]*beta[t+1][j]
-                    
-        return beta
+                    scaled_beta[t][i] += self.A[i][j]*self.B_map[j][t+1]*scaled_beta[t+1][j]
+            scaled_beta[t][:] *= (1.0/self.scaling_c[t+1])
+        return scaled_beta
     
     def decode(self, observations):
         '''
@@ -160,18 +164,12 @@ class _BaseHMM(object):
             alpha = self._calcalpha(observations)
         if beta is None:
             beta = self._calcbeta(observations)
-        xi = numpy.zeros((len(observations),self.n,self.n),dtype=self.precision)
+        # There is a bug in the original implementation below
+        xi = numpy.zeros((len(observations) - 1, self.n, self.n),
+                         dtype=self.precision)
         
         for t in xrange(len(observations)-1):
-            denom = 0.0
-            for i in xrange(self.n):
-                for j in xrange(self.n):
-                    thing = 1.0
-                    thing *= alpha[t][i]
-                    thing *= self.A[i][j]
-                    thing *= self.B_map[j][t+1]
-                    thing *= beta[t+1][j]
-                    denom += thing
+            denom = self.scaling_c[t+1]
             for i in xrange(self.n):
                 for j in xrange(self.n):
                     numer = 1.0
@@ -183,18 +181,29 @@ class _BaseHMM(object):
                     
         return xi
 
-    def _calcgamma(self,xi,seqlen):
+    def _calcgamma(self, seq_len, scaled_alpha, scaled_beta):
         '''
-        Calculates 'gamma' from xi.
+        Calculates 'gamma' from alpha and beta.
         
         Gamma is a (TxN) numpy array, where gamma[t][i] = the probability of being
         in state 'i' at time 't' given the full observation sequence.
         '''        
-        gamma = numpy.zeros((seqlen,self.n),dtype=self.precision)
-        
-        for t in xrange(seqlen):
+        gamma = numpy.zeros((seq_len,self.n),dtype=self.precision)
+
+        # There is an important bug here in the original implementation. Since
+        # gamma is compute from xi and the last row of xi is full of zeros the
+        # resulting row of gamma for the last position is zero as well.
+
+        # TODO: Something better (i.e OOP) can be done with alpha, beta and
+        # observations. Currently there are some functions which need other
+        # functions to be called beforehand and this dependency isn't explicit
+        # right now.
+        # TODO: Setter method for observations.
+
+
+        for t in xrange(seq_len):
             for i in xrange(self.n):
-                gamma[t][i] = sum(xi[t][i])
+                gamma[t][i] = scaled_alpha[t][i] * scaled_beta[t][i]
         
         return gamma
     
@@ -287,7 +296,8 @@ class _BaseHMM(object):
         stats['alpha'] = self._calcalpha(observations)
         stats['beta'] = self._calcbeta(observations)
         stats['xi'] = self._calcxi(observations,stats['alpha'],stats['beta'])
-        stats['gamma'] = self._calcgamma(stats['xi'],len(observations))
+        stats['gamma'] = self._calcgamma(len(observations),
+                                         stats['alpha'], stats['beta'])
         
         return stats
     
@@ -338,4 +348,130 @@ class _BaseHMM(object):
         increase performance.
         '''
         raise NotImplementedError("a mapping function for B(observable probabilities) must be implemented")
-        
+
+
+    # Testing code
+
+    def _calc_unscaled_alpha(self,observations):
+        '''
+        Calculates 'alpha' the forward variable.
+
+        The alpha variable is a numpy array indexed by time, then state (TxN).
+        alpha[t][i] = the probability of being in state 'i' after observing the
+        first t symbols.
+        '''
+        alpha = numpy.zeros((len(observations),self.n),dtype=self.precision)
+
+        # init stage - alpha_1(x) = pi(x)b_x(O1)
+        for x in xrange(self.n):
+            alpha[0][x] = self.pi[x]*self.B_map[x][0]
+
+        # induction
+        for t in xrange(1,len(observations)):
+            for j in xrange(self.n):
+                for i in xrange(self.n):
+                    alpha[t][j] += alpha[t-1][i]*self.A[i][j]
+                alpha[t][j] *= self.B_map[j][t]
+
+        return alpha
+
+
+    def _calcxi_unscaled(self,observations,alpha=None,beta=None):
+        '''
+        Calculates 'xi', a joint probability from the 'alpha' and 'beta' variables.
+
+        The xi variable is a numpy array indexed by time, state, and state (TxNxN).
+        xi[t][i][j] = the probability of being in state 'i' at time 't', and 'j' at
+        time 't+1' given the entire observation sequence.
+        '''
+        if alpha is None:
+            alpha = self._calc_unscaled_alpha(observations)
+        if beta is None:
+            beta = self._calc_unscaled_beta(observations)
+        xi = numpy.zeros((len(observations),self.n,self.n),dtype=self.precision)
+
+        for t in xrange(len(observations)-1):
+            denom = 0.0
+            for i in xrange(self.n):
+                for j in xrange(self.n):
+                    thing = 1.0
+                    thing *= alpha[t][i]
+                    thing *= self.A[i][j]
+                    thing *= self.B_map[j][t+1]
+                    thing *= beta[t+1][j]
+                    denom += thing
+            for i in xrange(self.n):
+                for j in xrange(self.n):
+                    numer = 1.0
+                    numer *= alpha[t][i]
+                    numer *= self.A[i][j]
+                    numer *= self.B_map[j][t+1]
+                    numer *= beta[t+1][j]
+                    xi[t][i][j] = numer/denom
+
+        return xi
+
+    def _calc_unscaled_beta(self,observations):
+        '''
+        Calculates 'beta' the backward variable.
+
+        The beta variable is a numpy array indexed by time, then state (TxN).
+        beta[t][i] = the probability of being in state 'i' and then observing the
+        symbols from t+1 to the end (T).
+        '''
+        beta = numpy.zeros((len(observations),self.n),dtype=self.precision)
+
+        # init stage
+        for s in xrange(self.n):
+            beta[len(observations)-1][s] = 1.
+
+        # induction
+        for t in xrange(len(observations)-2,-1,-1):
+            for i in xrange(self.n):
+                for j in xrange(self.n):
+                    beta[t][i] += self.A[i][j]*self.B_map[j][t+1]*beta[t+1][j]
+
+        return beta
+
+
+
+    def ComputeGammaUsingAlphaAndBeta(self, observations):
+
+        self._mapB(observations)
+
+        gamma_unscaled = numpy.zeros((len(observations), self.n))
+        scaled_alpha = self._calcalpha(observations)
+        scaled_beta = self._calcbeta(observations)
+        alpha = self._calc_unscaled_alpha(observations)
+        beta = self._calc_unscaled_beta(observations)
+
+        marginal = sum(alpha[-1])
+
+        for t in xrange(len(observations)):
+            for i in xrange(self.n):
+                gamma_unscaled[t][i] = (alpha[t][i] * beta[t][i]) / marginal
+
+        gamma_scaled = self._calcgamma(len(observations),
+                                       scaled_alpha, scaled_beta)
+        print "max diff between gammas", (gamma_unscaled - gamma_scaled).max()
+
+        for t in xrange(len(observations)):
+            print gamma_scaled[t][:].sum(), gamma_unscaled[t][:].sum()
+            print gamma_scaled[t], gamma_unscaled[t]
+
+        # xi = self._calcxi(observations)
+        # unscaled_xi = self._calcxi_unscaled(observations)
+        #
+        # print "Max diff xi", (xi - unscaled_xi).max()
+        #
+        # for t in xrange(len(observations)):
+        #     print "scaled"
+        #     print xi[t]
+        #     print "unscaled"
+        #     print unscaled_xi[t]
+
+        # CONCLUSION: xi and gamma verified. API of gamma changed.
+
+
+
+

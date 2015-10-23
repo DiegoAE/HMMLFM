@@ -2,6 +2,7 @@ __author__ = 'diego'
 
 from hmm.continuous.LFMHMM import LFMHMM
 from matplotlib import pyplot as plt
+from scipy import stats
 import numpy as np
 
 
@@ -36,10 +37,14 @@ lfm_hmm = LFMHMM(
     damper_constants,
     spring_constants,
     lengthscales,
+    verbose=True,
 )
 
 
 obs = lfm_hmm.generate_observations()
+
+lfm_hmm._mapB(obs)
+
 
 # plt.plot(lfm_hmm.sample_locations, obs.flatten())
 # for s in xrange(segments):
@@ -47,7 +52,10 @@ obs = lfm_hmm.generate_observations()
 #                 color='red', linestyle='--')
 # plt.show()
 
-#lfm_hmm._mapB(obs)
-lfm_hmm.train(obs)
-print lfm_hmm.pi
-print lfm_hmm.A
+# lfm_hmm.train(obs, 5)
+# print lfm_hmm.pi
+# print lfm_hmm.A
+
+
+
+

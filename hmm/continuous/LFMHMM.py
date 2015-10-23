@@ -49,6 +49,7 @@ class LFMHMM(_BaseHMM):
             realization = np.random.multivariate_normal(
                 mean=np.zeros(cov.shape[0]), cov=cov)
             output[i, :] = realization
+        print "Hidden States", hidden_states
         return output
 
 
@@ -79,7 +80,6 @@ class LFMHMM(_BaseHMM):
                 self.B_map[j][t] = stats.multivariate_normal.pdf(
                     observations[t], np.zeros(cov.shape[0]), cov,
                     True) # Allowing singularity in cov. This is weird
-
 
 
 

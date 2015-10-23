@@ -46,8 +46,7 @@ class _BaseHMM(object):
             self._mapB(observations)
         
         alpha = self._calcalpha(observations)
-        # TODO In order to avoid overflow use the log trick with the c_n's.
-        return numpy.log(sum(alpha[-1])) # TODO This is no longer the case. FIX.
+        return numpy.log(self.scaling_c).sum()
 
     
     def _calcalpha(self,observations):
@@ -55,7 +54,6 @@ class _BaseHMM(object):
         Calculates 'alpha' the forward variable.
 
         '''
-        mi_alpha = numpy.zeros((len(observations), self.n), dtype=self.precision)
         scaled_alpha = numpy.zeros((len(observations),self.n),
                                    dtype=self.precision)
 
@@ -66,7 +64,6 @@ class _BaseHMM(object):
 
         self.scaling_c[0] = scaled_alpha[0][:].sum()
         scaled_alpha[0][:] *= (1.0/self.scaling_c[0])
-        # acum_prod = 1.0 # this constant goes quickly to zero
         # induction
         for t in xrange(1,len(observations)):
             for j in xrange(self.n):
@@ -74,9 +71,7 @@ class _BaseHMM(object):
                     scaled_alpha[t][j] += scaled_alpha[t-1][i]*self.A[i][j]
                 scaled_alpha[t][j] *= self.B_map[j][t]
             self.scaling_c[t] = scaled_alpha[t][:].sum()
-            scaled_alpha[t][:] *= (1.0/self.scaling_c [t])
-            # acum_prod *= scaling_c[t]
-            # mi_alpha[t][:] = scaled_alpha[t][:] * acum_prod
+            scaled_alpha[t][:] *= (1.0/self.scaling_c[t])
         return scaled_alpha
 
     def _calcbeta(self,observations):
@@ -437,6 +432,9 @@ class _BaseHMM(object):
 
     def ComputeGammaUsingAlphaAndBeta(self, observations):
 
+
+        print "Testing output =================="
+
         self._mapB(observations)
 
         gamma_unscaled = numpy.zeros((len(observations), self.n))
@@ -455,15 +453,15 @@ class _BaseHMM(object):
                                        scaled_alpha, scaled_beta)
         print "max diff between gammas", (gamma_unscaled - gamma_scaled).max()
 
-        for t in xrange(len(observations)):
-            print gamma_scaled[t][:].sum(), gamma_unscaled[t][:].sum()
-            print gamma_scaled[t], gamma_unscaled[t]
+        # for t in xrange(len(observations)):
+        #     print gamma_scaled[t][:].sum(), gamma_unscaled[t][:].sum()
+        #     print gamma_scaled[t], gamma_unscaled[t]
 
-        # xi = self._calcxi(observations)
-        # unscaled_xi = self._calcxi_unscaled(observations)
-        #
-        # print "Max diff xi", (xi - unscaled_xi).max()
-        #
+        xi = self._calcxi(observations)
+        unscaled_xi = self._calcxi_unscaled(observations)[:-1]
+
+        print "Max diff xi", (xi - unscaled_xi).max()
+
         # for t in xrange(len(observations)):
         #     print "scaled"
         #     print xi[t]
@@ -471,6 +469,13 @@ class _BaseHMM(object):
         #     print unscaled_xi[t]
 
         # CONCLUSION: xi and gamma verified. API of gamma changed.
+
+        print "End testing output =================="
+
+        print numpy.log(self.scaling_c).sum()
+
+
+
 
 
 

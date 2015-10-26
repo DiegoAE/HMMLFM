@@ -56,6 +56,13 @@ lfm_hmm._mapB(obs)
 # print lfm_hmm.pi
 # print lfm_hmm.A
 
+# Recomendaciones de mauricio para los problemas numericos
+# 1. Mirar el caso en en que el kernel no funciona bien (overdamped, underdamped, critically damped).
+# 2. Asegurarse que el lengthscale sea más grande que las distancias entre samples.
+# 3. Sumar un jitter para la matriz de covarianza.
+# 4. Mirar el código de Matlab por que no funciona?
+# 5. Graficar la matriz de covarianza obtenida para visualizar que puede estar fallando
+
 
 
 

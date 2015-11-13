@@ -18,6 +18,7 @@ class _BaseHMM(object):
     def __init__(self,n,m,precision=numpy.double,verbose=False):
         self.n = n
         self.m = m
+        self.observations = None
         
         self.precision = precision
         self.verbose = verbose
@@ -31,7 +32,7 @@ class _BaseHMM(object):
         '''
         return 1.
       
-    def forwardbackward(self,observations, cache=False):
+    def forwardbackward(self, observations=None):
         '''
         Forward-Backward procedure is used to efficiently calculate the probability of the observation, given the model - P(O|model)
         alpha_t(x) = P(O1...Ot,qt=Sx|model) - The probability of state x and the observation up to time t, given the model.
@@ -42,135 +43,89 @@ class _BaseHMM(object):
         probabilities. In the continuous case, we are using PDFs which aren't normalized into actual probabilities,
         so the value could be positive.
         '''
-        if (cache==False):
-            self._mapB(observations)
-        
-        alpha = self._calcalpha(observations)
-        return numpy.log(self.scaling_c).sum()
 
-    
-    def _calcalpha(self,observations):
+        if observations:
+            self.set_observations(observations)
+
+        # TODO: this call can be avoided because of performance.
+        # The log-likelihood can be computed in _calcstats.
+
+        number_sequences = self.B_maps.shape[0]
+        log_likelihood = 0.0
+        for i in xrange(number_sequences):
+            alpha, scaling_c = self._calcalpha(self.B_maps[i])
+            log_likelihood += numpy.log(scaling_c).sum()
+        return log_likelihood
+
+    def _calcalpha(self, B_map):
         '''
         Calculates 'alpha' the forward variable.
 
         '''
-        scaled_alpha = numpy.zeros((len(observations),self.n),
+        assert len(B_map) > 0
+        number_observations = len(B_map[0])
+        scaled_alpha = numpy.zeros((number_observations, self.n),
                                    dtype=self.precision)
 
-        self.scaling_c = numpy.zeros(len(observations))
+        scaling_c = numpy.zeros(number_observations)
 
         for x in xrange(self.n):
-            scaled_alpha[0][x] = self.pi[x]*self.B_map[x][0]
+            scaled_alpha[0][x] = self.pi[x]*B_map[x][0]
 
-        self.scaling_c[0] = scaled_alpha[0][:].sum()
-        scaled_alpha[0][:] *= (1.0/self.scaling_c[0])
+        scaling_c[0] = scaled_alpha[0][:].sum()
+        scaled_alpha[0][:] *= (1.0/scaling_c[0])
         # induction
-        for t in xrange(1,len(observations)):
+        for t in xrange(1, number_observations):
             for j in xrange(self.n):
                 for i in xrange(self.n):
                     scaled_alpha[t][j] += scaled_alpha[t-1][i]*self.A[i][j]
-                scaled_alpha[t][j] *= self.B_map[j][t]
-            self.scaling_c[t] = scaled_alpha[t][:].sum()
-            scaled_alpha[t][:] *= (1.0/self.scaling_c[t])
-        return scaled_alpha
+                scaled_alpha[t][j] *= B_map[j][t]
+            scaling_c[t] = scaled_alpha[t][:].sum()
+            scaled_alpha[t][:] *= (1.0/scaling_c[t])
+        return scaled_alpha, scaling_c
 
-    def _calcbeta(self,observations):
-        '''
-        '''        
-        scaled_beta = numpy.zeros((len(observations),self.n),dtype=self.precision)
+    def _calcbeta(self, B_map, scaling_c):
 
-        
+        assert len(B_map) > 0
+        number_observations = len(B_map[0])
+        scaled_beta = numpy.zeros((number_observations, self.n),
+                                  dtype=self.precision)
+
         # init stage
         for s in xrange(self.n):
-            scaled_beta[len(observations)-1][s] = 1.
+            scaled_beta[number_observations-1][s] = 1.
         
         # induction
-        for t in xrange(len(observations)-2,-1,-1):
+        for t in xrange(number_observations-2, -1, -1):
             for i in xrange(self.n):
                 for j in xrange(self.n):
-                    scaled_beta[t][i] += self.A[i][j]*self.B_map[j][t+1]*scaled_beta[t+1][j]
-            scaled_beta[t][:] *= (1.0/self.scaling_c[t+1])
+                    scaled_beta[t][i] += \
+                        self.A[i][j]*B_map[j][t+1]*scaled_beta[t+1][j]
+            scaled_beta[t][:] *= (1.0/scaling_c[t+1])
         return scaled_beta
-    
-    def decode(self, observations):
-        '''
-        Find the best state sequence (path), given the model and an observation. i.e: max(P(Q|O,model)).
-        
-        This method is usually used to predict the next state after training. 
-        '''        
-        # use Viterbi's algorithm. It is possible to add additional algorithms in the future.
-        return self._viterbi(observations)
-    
-    def _viterbi(self, observations):
-        '''
-        Find the best state sequence (path) using viterbi algorithm - a method of dynamic programming,
-        very similar to the forward-backward algorithm, with the added step of maximization and eventual
-        backtracing.
-        
-        delta[t][i] = max(P[q1..qt=i,O1...Ot|model] - the path ending in Si and until time t,
-        that generates the highest probability.
-        
-        psi[t][i] = argmax(delta[t-1][i]*aij) - the index of the maximizing state in time (t-1), 
-        i.e: the previous state.
-        '''
-        # similar to the forward-backward algorithm, we need to make sure that we're using fresh data for the given observations.
-        self._mapB(observations)
-        
-        delta = numpy.zeros((len(observations),self.n),dtype=self.precision)
-        psi = numpy.zeros((len(observations),self.n),dtype=self.precision)
-        
-        # init
-        for x in xrange(self.n):
-            delta[0][x] = self.pi[x]*self.B_map[x][0]
-            psi[0][x] = 0
-        
-        # induction
-        for t in xrange(1,len(observations)):
-            for j in xrange(self.n):
-                for i in xrange(self.n):
-                    if (delta[t][j] < delta[t-1][i]*self.A[i][j]):
-                        delta[t][j] = delta[t-1][i]*self.A[i][j]
-                        psi[t][j] = i
-                delta[t][j] *= self.B_map[j][t]
-        
-        # termination: find the maximum probability for the entire sequence (=highest prob path)
-        p_max = 0 # max value in time T (max)
-        path = numpy.zeros((len(observations)),dtype=self.precision)
-        for i in xrange(self.n):
-            if (p_max < delta[len(observations)-1][i]):
-                p_max = delta[len(observations)-1][i]
-                path[len(observations)-1] = i
-        
-        # path backtracing
-#        path = numpy.zeros((len(observations)),dtype=self.precision) ### 2012-11-17 - BUG FIX: wrong reinitialization destroyed the last state in the path
-        for i in xrange(1, len(observations)):
-            path[len(observations)-i-1] = psi[len(observations)-i][ path[len(observations)-i] ]
-        return path
      
-    def _calcxi(self,observations,alpha=None,beta=None):
+    def _calcxi(self, B_map, alpha, beta, scaling_c):
         '''
         Calculates 'xi', a joint probability from the 'alpha' and 'beta' variables.
         
         The xi variable is a numpy array indexed by time, state, and state (TxNxN).
         xi[t][i][j] = the probability of being in state 'i' at time 't', and 'j' at
         time 't+1' given the entire observation sequence.
-        '''        
-        if alpha is None:
-            alpha = self._calcalpha(observations)
-        if beta is None:
-            beta = self._calcbeta(observations)
+        '''
         # There is a bug in the original implementation below
-        xi = numpy.zeros((len(observations) - 1, self.n, self.n),
+        assert len(B_map) > 0
+        number_observations = len(B_map[0])
+        xi = numpy.zeros((number_observations - 1, self.n, self.n),
                          dtype=self.precision)
         
-        for t in xrange(len(observations)-1):
-            denom = self.scaling_c[t+1]
+        for t in xrange(number_observations - 1):
+            denom = scaling_c[t+1]
             for i in xrange(self.n):
                 for j in xrange(self.n):
                     numer = 1.0
                     numer *= alpha[t][i]
                     numer *= self.A[i][j]
-                    numer *= self.B_map[j][t+1]
+                    numer *= B_map[j][t+1]
                     numer *= beta[t+1][j]
                     xi[t][i][j] = numer/denom
                     
@@ -202,7 +157,8 @@ class _BaseHMM(object):
         
         return gamma
     
-    def train(self, observations, iterations=1,epsilon=0.0001,thres=-0.001):
+    def train(self, observations=None, iterations=100,
+              epsilon=0.0001, thres=-0.001):
         '''
         Updates the HMMs parameters given a new set of observed sequences.
         
@@ -215,11 +171,12 @@ class _BaseHMM(object):
         
         'thres' denotes the algorithms sensitivity to the log likelihood decreasing
         from one iteration to the other.
-        '''        
-        self._mapB(observations)
+        '''
+        if observations:
+            self.set_observations(observations)
         
         for i in xrange(iterations):
-            prob_old, prob_new = self.trainiter(observations)
+            prob_old, prob_new = self.trainiter()
 
             if (self.verbose):      
                 print "iter: ", i, ", L(model|O) =", prob_old, ", L(model_new|O) =", prob_new, ", converging =", ( prob_new-prob_old > thres )
@@ -234,8 +191,9 @@ class _BaseHMM(object):
         '''
         self.pi = new_model['pi']
         self.A = new_model['A']
+        self._mapB()
                 
-    def trainiter(self,observations):
+    def trainiter(self):
         '''
         A single iteration of an EM algorithm, which given the current HMM,
         computes new model parameters and internally replaces the old model
@@ -243,40 +201,61 @@ class _BaseHMM(object):
         
         Returns the log likelihood of the old model (before the update),
         and the one for the new model.
+
+        This method assumes that the observations were already set through
+        _mapB.
         '''        
         # call the EM algorithm
-        new_model = self._baumwelch(observations)
+        new_model = self._baumwelch()
         
         # calculate the log likelihood of the previous model
-        prob_old = self.forwardbackward(observations, cache=True)
+        prob_old = self.forwardbackward()
         
         # update the model with the new estimation
         self._updatemodel(new_model)
         
-        # calculate the log likelihood of the new model. Cache set to false in order to recompute probabilities of the observations give the model.
-        prob_new = self.forwardbackward(observations, cache=False)
+        # calculate the log likelihood of the new model.
+        prob_new = self.forwardbackward()
         
         return prob_old, prob_new
     
-    def _reestimateA(self,observations,xi,gamma):
+    def _reestimateA(self, xis, gammas):
         '''
         Reestimation of the transition matrix (part of the 'M' step of Baum-Welch).
         Computes A_new = expected_transitions(i->j)/expected_transitions(i)
         
         Returns A_new, the modified transition matrix. 
         '''
-        A_new = numpy.zeros((self.n,self.n),dtype=self.precision)
+        assert len(xis) == len(gammas)
+        n_sequences = len(xis)
+        A_new = numpy.zeros((self.n, self.n), dtype=self.precision)
         for i in xrange(self.n):
             for j in xrange(self.n):
                 numer = 0.0
                 denom = 0.0
-                for t in xrange(len(observations)-1):
-                    numer += (self._eta(t,len(observations)-1)*xi[t][i][j])
-                    denom += (self._eta(t,len(observations)-1)*gamma[t][i])
+                for s in xrange(n_sequences):
+                    xi = xis[s]
+                    gamma = gammas[s]
+                    n_observations = len(gamma)
+                    for t in xrange(n_observations - 1):
+                        numer += (self._eta(t, n_observations - 1)*xi[t][i][j])
+                        denom += (self._eta(t, n_observations - 1)*gamma[t][i])
                 A_new[i][j] = numer/denom
         return A_new
-    
-    def _calcstats(self,observations):
+
+    def _reestimatePi(self, gammas):
+        '''
+        Estimation of the initial state density from multiple training sequences
+        using the gamma values for each sequence.
+        '''
+        n_sequences = len(gammas)
+        pi = numpy.zeros(self.n)
+        for i in xrange(n_sequences):
+            pi += gammas[i][0]
+        pi /= n_sequences
+        return pi
+
+    def _calcstats(self):
         '''
         Calculates required statistics of the current model, as part
         of the Baum-Welch 'E' step.
@@ -285,18 +264,40 @@ class _BaseHMM(object):
         any additional computations their model requires.
         
         Returns 'stat's, a dictionary containing required statistics.
+
+        This method assumes that the observations were already set through
+        _mapB.
         '''
         stats = {}
-        
-        stats['alpha'] = self._calcalpha(observations)
-        stats['beta'] = self._calcbeta(observations)
-        stats['xi'] = self._calcxi(observations,stats['alpha'],stats['beta'])
-        stats['gamma'] = self._calcgamma(len(observations),
-                                         stats['alpha'], stats['beta'])
+
+        number_sequences = self.B_maps.shape[0]
+        alphas = numpy.zeros(number_sequences, dtype=object)
+        betas = numpy.zeros(number_sequences, dtype=object)
+        xis = numpy.zeros(number_sequences, dtype=object)
+        gammas = numpy.zeros(number_sequences, dtype=object)
+        # log_likelihood = 0.0
+        for i in xrange(number_sequences):
+            assert len(self.B_maps[i]) > 0
+            n_observations = len(self.B_maps[i][0])
+            alpha, scaling_c = self._calcalpha(self.B_maps[i])
+            beta = self._calcbeta(self.B_maps[i], scaling_c)
+            xi = self._calcxi(self.B_maps[i], alpha, beta, scaling_c)
+            gamma = self._calcgamma(n_observations, alpha, beta)
+            alphas[i] = alpha
+            betas[i] = beta
+            xis[i] = xi
+            gammas[i] = gamma
+            # log_likelihood += numpy.log(scaling_c).sum()
+
+        stats['alphas'] = alphas
+        stats['betas'] = betas
+        stats['xis'] = xis
+        stats['gammas'] = gammas
+        # stats['ll'] = log_likelihood
         
         return stats
     
-    def _reestimate(self,stats,observations):
+    def _reestimate(self, stats):
         '''
         Performs the 'M' step of the Baum-Welch algorithm.
         
@@ -305,29 +306,39 @@ class _BaseHMM(object):
         
         Returns 'new_model', a dictionary containing the new maximized
         model's parameters.
+
+        This method assumes that the observations were already set
+        through _mapB.
         '''        
-        new_model = {}
-        
-        # new init vector is set to the frequency of being in each step at t=0 
-        new_model['pi'] = stats['gamma'][0]
-        new_model['A'] = self._reestimateA(observations,stats['xi'],stats['gamma'])
-        
+        new_model = {
+            'pi': self._reestimatePi(stats['gammas']),
+            'A': self._reestimateA(stats['xis'], stats['gammas']),
+        }
         return new_model
     
-    def _baumwelch(self,observations):
+    def _baumwelch(self):
         '''
         An EM(expectation-modification) algorithm devised by Baum-Welch. Finds a local maximum
         that outputs the model that produces the highest probability, given a set of observations.
         
-        Returns the new maximized model parameters
+        Returns the new maximized model parameters.
+
+        This method assumes that the observations were already set
+        through _mapB.
         '''        
         # E step - calculate statistics
-        stats = self._calcstats(observations)
+        stats = self._calcstats()
         
         # M step
-        return self._reestimate(stats,observations)
+        return self._reestimate(stats)
 
-    def _mapB(self,observations):
+    def set_observations(self, observations):
+        if type(observations) is not list:
+            raise TypeError("Expecting a list of observations as input.")
+        self.observations = observations
+        self._mapB()
+
+    def _mapB(self):
         '''
         Deriving classes should implement this method, so that it maps the observations'
         mass/density Bj(Ot) to Bj(t).
@@ -343,136 +354,6 @@ class _BaseHMM(object):
         increase performance.
         '''
         raise NotImplementedError("a mapping function for B(observable probabilities) must be implemented")
-
-
-    # Testing code
-
-    def _calc_unscaled_alpha(self,observations):
-        '''
-        Calculates 'alpha' the forward variable.
-
-        The alpha variable is a numpy array indexed by time, then state (TxN).
-        alpha[t][i] = the probability of being in state 'i' after observing the
-        first t symbols.
-        '''
-        alpha = numpy.zeros((len(observations),self.n),dtype=self.precision)
-
-        # init stage - alpha_1(x) = pi(x)b_x(O1)
-        for x in xrange(self.n):
-            alpha[0][x] = self.pi[x]*self.B_map[x][0]
-
-        # induction
-        for t in xrange(1,len(observations)):
-            for j in xrange(self.n):
-                for i in xrange(self.n):
-                    alpha[t][j] += alpha[t-1][i]*self.A[i][j]
-                alpha[t][j] *= self.B_map[j][t]
-
-        return alpha
-
-
-    def _calcxi_unscaled(self,observations,alpha=None,beta=None):
-        '''
-        Calculates 'xi', a joint probability from the 'alpha' and 'beta' variables.
-
-        The xi variable is a numpy array indexed by time, state, and state (TxNxN).
-        xi[t][i][j] = the probability of being in state 'i' at time 't', and 'j' at
-        time 't+1' given the entire observation sequence.
-        '''
-        if alpha is None:
-            alpha = self._calc_unscaled_alpha(observations)
-        if beta is None:
-            beta = self._calc_unscaled_beta(observations)
-        xi = numpy.zeros((len(observations),self.n,self.n),dtype=self.precision)
-
-        for t in xrange(len(observations)-1):
-            denom = 0.0
-            for i in xrange(self.n):
-                for j in xrange(self.n):
-                    thing = 1.0
-                    thing *= alpha[t][i]
-                    thing *= self.A[i][j]
-                    thing *= self.B_map[j][t+1]
-                    thing *= beta[t+1][j]
-                    denom += thing
-            for i in xrange(self.n):
-                for j in xrange(self.n):
-                    numer = 1.0
-                    numer *= alpha[t][i]
-                    numer *= self.A[i][j]
-                    numer *= self.B_map[j][t+1]
-                    numer *= beta[t+1][j]
-                    xi[t][i][j] = numer/denom
-
-        return xi
-
-    def _calc_unscaled_beta(self,observations):
-        '''
-        Calculates 'beta' the backward variable.
-
-        The beta variable is a numpy array indexed by time, then state (TxN).
-        beta[t][i] = the probability of being in state 'i' and then observing the
-        symbols from t+1 to the end (T).
-        '''
-        beta = numpy.zeros((len(observations),self.n),dtype=self.precision)
-
-        # init stage
-        for s in xrange(self.n):
-            beta[len(observations)-1][s] = 1.
-
-        # induction
-        for t in xrange(len(observations)-2,-1,-1):
-            for i in xrange(self.n):
-                for j in xrange(self.n):
-                    beta[t][i] += self.A[i][j]*self.B_map[j][t+1]*beta[t+1][j]
-
-        return beta
-
-
-
-    def ComputeGammaUsingAlphaAndBeta(self, observations):
-
-
-        print "Testing output =================="
-
-        self._mapB(observations)
-
-        gamma_unscaled = numpy.zeros((len(observations), self.n))
-        scaled_alpha = self._calcalpha(observations)
-        scaled_beta = self._calcbeta(observations)
-        alpha = self._calc_unscaled_alpha(observations)
-        beta = self._calc_unscaled_beta(observations)
-
-        marginal = sum(alpha[-1])
-
-        for t in xrange(len(observations)):
-            for i in xrange(self.n):
-                gamma_unscaled[t][i] = (alpha[t][i] * beta[t][i]) / marginal
-
-        gamma_scaled = self._calcgamma(len(observations),
-                                       scaled_alpha, scaled_beta)
-        print "max diff between gammas", (gamma_unscaled - gamma_scaled).max()
-
-        # for t in xrange(len(observations)):
-        #     print gamma_scaled[t][:].sum(), gamma_unscaled[t][:].sum()
-        #     print gamma_scaled[t], gamma_unscaled[t]
-
-        xi = self._calcxi(observations)
-        unscaled_xi = self._calcxi_unscaled(observations)[:-1]
-
-        print "Max diff xi", (xi - unscaled_xi).max()
-
-        # for t in xrange(len(observations)):
-        #     print "scaled"
-        #     print xi[t]
-        #     print "unscaled"
-        #     print unscaled_xi[t]
-
-        # CONCLUSION: xi and gamma verified. API of gamma changed.
-
-        print "End testing output =================="
-
-        print numpy.log(self.scaling_c).sum()
 
 
 

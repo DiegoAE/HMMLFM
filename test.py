@@ -49,8 +49,6 @@ lfm_hmm = LFMHMM(
 #                 color='red', linestyle='--')
 # plt.show()
 
-
-
 def aux_get_end(start, end, locations_per_segment, segments):
     assert locations_per_segment > 1
     ret = start + (end - start) * segments
@@ -59,41 +57,45 @@ def aux_get_end(start, end, locations_per_segment, segments):
 
 segments = 10
 
-obs = lfm_hmm.generate_observations(segments)
+obs_1 = lfm_hmm.generate_observations(segments)
 
 computed_end = aux_get_end(start_t, end_t, locations_per_segment, segments)
 
 sample_locations = np.linspace(start_t, computed_end,
                                locations_per_segment * segments)
 
-plt.plot(sample_locations, obs.flatten())
-for s in xrange(segments):
-    plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
-                color='red', linestyle='--')
-plt.show()
+# plt.plot(sample_locations, obs.flatten())
+# for s in xrange(segments):
+#     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
+#                 color='red', linestyle='--')
+# plt.show()
 
 segments = 20
 
-obs = lfm_hmm.generate_observations(segments)
+obs_2 = lfm_hmm.generate_observations(segments)
 
 computed_end = aux_get_end(start_t, end_t, locations_per_segment, segments)
 
 sample_locations = np.linspace(start_t, computed_end,
                                locations_per_segment * segments)
 
-plt.plot(sample_locations, obs.flatten())
-for s in xrange(segments):
-    plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
-                color='red', linestyle='--')
-plt.show()
+# plt.plot(sample_locations, obs.flatten())
+# for s in xrange(segments):
+#     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
+#                 color='red', linestyle='--')
+# plt.show()
 
-# lfm_hmm._mapB(obs)
+obs = [obs_1, obs_2]
+# obs = [obs_2]
+
+lfm_hmm.set_observations(obs)
+lfm_hmm.train()
 
 # lfm_hmm.train(obs, 100)
 print lfm_hmm.pi
 print lfm_hmm.A
 
-# TODO: Extend to EM to work with multiple training sequences.
+# TODO: Change the initial values of pi and A.
 
 # Recomendaciones de mauricio para los problemas numericos
 # 1. Mirar el caso en en que el kernel no funciona bien (overdamped, underdamped, critically damped).

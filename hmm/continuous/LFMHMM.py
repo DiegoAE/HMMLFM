@@ -6,6 +6,13 @@ from scipy import stats
 import numpy as np
 
 
+class LFMHMMError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+
 class LFMHMM(_BaseHMM):
 
     def __init__(self, n, A, pi, number_outputs, start_t, end_t,
@@ -65,26 +72,40 @@ class LFMHMM(_BaseHMM):
         self.memo_covs[hidden_state] = cov
         return cov
 
-    def _mapB(self,observations):
+    def _mapB(self):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
+        # TODO: rewrite this code in such a way that B_map can be compatible
+        # with the code already written. The idea is to use calc_alpha and
+        # calc_beta as they are right now, providing the proper inputs and
+        # getting the corresponding outputs.
 
-        numbers_of_segments = len(observations)
+        if not self.observations:
+            raise LFMHMMError("The training sequences haven't been set.")
 
-        self.B_map = np.zeros((self.n, numbers_of_segments),
-                              dtype=self.precision)
+        numbers_of_sequences = len(self.observations)
+
+        self.B_maps = np.zeros((numbers_of_sequences, self.n), dtype=object)
+
+        for j in xrange(numbers_of_sequences):
+            for i in xrange(self.n):
+                self.B_maps[j][i] = np.zeros(len(self.observations[j]),
+                                             dtype=self.precision)
 
         # strange behavior found between numpy and stats. See below.
 
-        for j in xrange(self.n):
-            for t in xrange(numbers_of_segments):
-                cov = self.get_cov_function(j)
-                self.B_map[j][t] = stats.multivariate_normal.pdf(
-                    observations[t], np.zeros(cov.shape[0]), cov,
-                    True)  # Allowing singularity in cov. This is weird
+        for j in xrange(numbers_of_sequences):
+            number_of_segments = len(self.observations[j])
+            for i in xrange(self.n):
+                cov = self.get_cov_function(i)
+                for t in xrange(number_of_segments):
+                    self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
+                        self.observations[j][t], np.zeros(cov.shape[0]), cov,
+                        True)  # Allowing singularity in cov. This is weird.
 
-        print self.B_map
+
+
 
 
 

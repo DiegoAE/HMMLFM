@@ -157,7 +157,7 @@ class _BaseHMM(object):
         
         return gamma
     
-    def train(self, observations=None, iterations=100,
+    def train(self, observations=None, iterations=1000,
               epsilon=0.0001, thres=-0.001):
         '''
         Updates the HMMs parameters given a new set of observed sequences.
@@ -313,7 +313,7 @@ class _BaseHMM(object):
         new_model = {
             'pi': self._reestimatePi(stats['gammas']),
             'A': self._reestimateA(stats['xis'], stats['gammas']),
-        }
+        } #TODO: reestimate the observation model.
         return new_model
     
     def _baumwelch(self):

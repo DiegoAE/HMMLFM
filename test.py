@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 from scipy import stats
 import numpy as np
 
-
 np.random.seed(200)
 
 pi = np.array([0.3, 0.3, 0.4])
@@ -85,8 +84,12 @@ sample_locations = np.linspace(start_t, computed_end,
 #                 color='red', linestyle='--')
 # plt.show()
 
-obs = [obs_1, obs_2]
-# obs = [obs_2]
+obs = []
+n_training_sequences = 20
+for i in xrange(n_training_sequences):
+    segments = np.random.randint(1, 100)
+    print "The %d-th sequence has length %d" % (i, segments)
+    obs.append(lfm_hmm.generate_observations(segments))
 
 lfm_hmm.set_observations(obs)
 lfm_hmm.train()

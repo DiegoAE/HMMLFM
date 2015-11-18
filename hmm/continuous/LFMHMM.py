@@ -76,10 +76,6 @@ class LFMHMM(_BaseHMM):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
-        # TODO: rewrite this code in such a way that B_map can be compatible
-        # with the code already written. The idea is to use calc_alpha and
-        # calc_beta as they are right now, providing the proper inputs and
-        # getting the corresponding outputs.
 
         if not self.observations:
             raise LFMHMMError("The training sequences haven't been set.")

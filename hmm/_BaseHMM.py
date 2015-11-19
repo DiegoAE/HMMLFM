@@ -157,7 +157,7 @@ class _BaseHMM(object):
         
         return gamma
     
-    def train(self, observations=None, iterations=1000,
+    def train(self, observations=None, iterations=100,
               epsilon=0.0001, thres=-0.001):
         '''
         Updates the HMMs parameters given a new set of observed sequences.

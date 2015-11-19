@@ -122,7 +122,7 @@ def kffs(B,C,t,index,tp,indexp,lq):
 
 def K(B, C, lq, t):
     """ Computes the kernel covariance function for the second order LFM, using t against itself, k(t, t).
-    Asummptions:
+    Assumptions:
         *the output functions are evaluated in the same time steps.
         *There is only one input latent force with RBF lengthscale lq"""
     assert len(B) == len(C)
@@ -164,10 +164,14 @@ if __name__ == "__main__":
 
     cov = kffs(B,C,t,index,tp,indexp,lq)
 
+    plt.figure(1)
+    plt.imshow(cov)
+    plt.show()
+
     noise_var = 0.0005
     realization = np.random.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=np.real(cov) + np.eye(cov.shape[0]) * noise_var)
 
-
+    plt.figure(2)
     plt.plot(t1, realization[:ND1])
     plt.plot(t1, realization[ND1:])
     plt.show()

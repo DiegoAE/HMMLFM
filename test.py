@@ -14,14 +14,16 @@ print "hidden state transition matrix\n", A
 
 number_lfm = 3
 outputs = 1
-start_t = 10.0  # finding: it's problematic to choose 0 as starting point.
-end_t = 110.
+start_t = 0.1  # finding: it's problematic to choose 0 as starting point.
+end_t = 5.1 # finding: it's problematic to choose long times.
+            # since the cov's tend to be the same.
 locations_per_segment = 300
 # list of lists in case of multiple outputs
 damper_constants = np.asarray([[1.], [3.], [6.]])
 spring_constants = np.asarray([[3.], [1.], [5.]])
 # implicitly assuming there is only one latent force governing the system.
-lengthscales = np.asarray([8., 10., 12.])
+# lengthscales = np.asarray([8., 10., 12.])
+lengthscales = np.asarray([10., 10., 10.])
 # it seems to be quite problematic when you choose big lenghtscales
 
 lfm_hmm = LFMHMM(
@@ -85,20 +87,44 @@ sample_locations = np.linspace(start_t, computed_end,
 # plt.show()
 
 obs = []
-n_training_sequences = 20
+n_training_sequences = 1
 for i in xrange(n_training_sequences):
     segments = np.random.randint(1, 100)
     print "The %d-th sequence has length %d" % (i, segments)
     obs.append(lfm_hmm.generate_observations(segments))
 
-lfm_hmm.set_observations(obs)
-lfm_hmm.train()
+# plotting covariance matrix
 
-# lfm_hmm.train(obs, 100)
+# plt.figure(1)
+# plt.subplot(131)
+# plt.imshow(lfm_hmm.get_cov_function(0))
+# plt.subplot(132)
+# plt.imshow(lfm_hmm.get_cov_function(1))
+# plt.subplot(133)
+# plt.imshow(lfm_hmm.get_cov_function(2))
+# plt.show()
+
+####
+
+lfm_hmm.set_observations(obs)
+lfm_hmm.reset() # Reset to A and pi
+
 print lfm_hmm.pi
 print lfm_hmm.A
 
-# TODO: Change the initial values of pi and A.
+
+print "====  B_maps[0] ======="
+print lfm_hmm.B_maps[0]
+print "======================="
+
+lfm_hmm.train()
+
+print lfm_hmm.pi
+print lfm_hmm.A
+
+
+lfm_hmm.generate_observations(10)
+
 
 # Recomendaciones de mauricio para los problemas numericos
 # 1. Mirar el caso en en que el kernel no funciona bien (overdamped, underdamped, critically damped).
@@ -107,7 +133,9 @@ print lfm_hmm.A
 #   Asegurado
 # 3. Sumar un jitter para la matriz de covarianza.
 # 4. Mirar el codigo de Matlab por que no funciona?
-# 5. Graficar la matriz de covarianza obtenida para visualizar que puede estar fallando
+# 5. Graficar la matriz de covarianza obtenida para visualizar que puede estar fallando. Done. Good hint!
+
+
 
 
 

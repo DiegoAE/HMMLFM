@@ -41,6 +41,17 @@ class LFMHMM(_BaseHMM):
         self.lengthscales = lengthscales
         self.memo_covs = {}
 
+    def reset(self,init_type='uniform'):
+        '''
+        If required, initalize the model parameters according the selected policy
+        '''
+        if init_type == 'uniform':
+            self.pi = np.ones( (self.n), dtype=self.precision) *(1.0/self.n)
+            self.A = np.ones( (self.n,self.n), dtype=self.precision)*(1.0/self.n)
+            # TODO: allow the emission estimation, i.e. reestimateB
+        else:
+            raise LFMHMMError("reset init_type not supported.")
+
     def generate_observations(self, segments):
         output = np.zeros((segments, self.locations_per_segment),
                           dtype=self.precision)

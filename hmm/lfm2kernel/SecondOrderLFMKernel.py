@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from scipy.special import wofz
 
-def kffs(B,C,t,index,tp,indexp,lq):
+def kffs(B,C,t,index,tp,indexp,lq, noise_var):
 
     def hnew(gam1, gam2, gam3, t, tp, wofznu, nu, nu2):
         c1_1 = 1./(gam2 + gam1)
@@ -116,11 +116,12 @@ def kffs(B,C,t,index,tp,indexp,lq):
     #When wd and wd' ares real
     if np.any(np.logical_not(wbool)):
         kff[ind3t, ind3tp] = 2.*np.real(kff[ind3t, ind3tp])
+    # TODO:for now there is only one noise affecting all the outputs.
+    # And there should be one for each output.
+    return (K0 * kff).real + np.eye(t.size, tp.size) * noise_var
 
-    return (K0 * kff).real
 
-
-def K(B, C, lq, t):
+def K(B, C, lq, t, noise_var):
     """ Computes the kernel covariance function for the second order LFM, using t against itself, k(t, t).
     Assumptions:
         *the output functions are evaluated in the same time steps.
@@ -134,7 +135,7 @@ def K(B, C, lq, t):
     for d in xrange(D):
         idx = np.vstack((idx, d * np.ones((time_length,1), dtype = np.int8)))
         stacked_time = np.vstack((stacked_time, t))
-    return kffs(B, C, stacked_time, idx, stacked_time, idx, lq)
+    return kffs(B, C, stacked_time, idx, stacked_time, idx, lq, noise_var)
 
 
 def K_pred(B, C, lq, t, t_pred):
@@ -159,8 +160,10 @@ def K_pred(B, C, lq, t, t_pred):
         idx_t_pred = np.vstack(
             (idx_t_pred, d * np.ones((time_length_t_pred, 1), dtype=np.int8)))
         stacked_time_t_pred = np.vstack((stacked_time_t_pred, t_pred))
+    # Noise variance is assumed 0 here because this function is intended
+    # to return the covariance between training data and prediction data.
     return kffs(B, C, stacked_time_t, idx_t,
-                stacked_time_t_pred, idx_t_pred, lq)
+                stacked_time_t_pred, idx_t_pred, lq, 0.0)
 
 
 
@@ -170,6 +173,7 @@ if __name__ == "__main__":
     Cd = 3.
     Cdp = 1. #damper
     lq= 100.
+    noise_var = 0.001
 
     ND1= 50
     ND2= 50
@@ -189,14 +193,13 @@ if __name__ == "__main__":
     B = np.asarray([Bd, Bdp])
     C = np.asarray([Cd, Cdp])
 
-    cov = kffs(B,C,t,index,tp,indexp,lq)
+    cov = kffs(B, C, t, index, tp, indexp, lq, noise_var)
 
     plt.figure(1)
     plt.imshow(cov)
     plt.show()
 
-    noise_var = 0.0005
-    realization = np.random.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=np.real(cov) + np.eye(cov.shape[0]) * noise_var)
+    realization = np.random.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=np.real(cov))
 
     plt.figure(2)
     plt.plot(t1, realization[:ND1])

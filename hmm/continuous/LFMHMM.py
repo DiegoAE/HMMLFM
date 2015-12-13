@@ -17,7 +17,7 @@ class LFMHMM(_BaseHMM):
 
     def __init__(self, n, A, pi, number_outputs, start_t, end_t,
                  locations_per_segment, damper, spring, lengthscales,
-                 precision=np.double, verbose=False):
+                 noise_var, precision=np.double, verbose=False):
         assert n > 0
         assert locations_per_segment > 0
         assert A.shape == (n, n)
@@ -39,6 +39,7 @@ class LFMHMM(_BaseHMM):
         self.spring_cons = spring
         self.damper_cons = damper
         self.lengthscales = lengthscales
+        self.noise_var = noise_var
         self.memo_covs = {}
 
     def reset(self,init_type='uniform'):
@@ -69,6 +70,23 @@ class LFMHMM(_BaseHMM):
         print "Hidden States", hidden_states
         return output, hidden_states
 
+    def generate_observations(self, segments):
+        output = np.zeros((segments, self.locations_per_segment),
+                          dtype=self.precision)
+        initial_state = np.nonzero(np.random.multinomial(1, self.pi))[0][0]
+        hidden_states = [initial_state]
+        for x in xrange(1, segments):
+            hidden_states.append(np.nonzero(np.random.multinomial(
+                1, self.A[hidden_states[-1]]))[0][0])
+        for i in xrange(len(hidden_states)):
+            state = hidden_states[i]
+            cov = self.get_cov_function(state)
+            realization = np.random.multivariate_normal(
+                mean=np.zeros(cov.shape[0]), cov=cov)
+            output[i, :] = realization
+        print "Hidden States", hidden_states
+        return output, hidden_states
+
 
     def get_cov_function(self, hidden_state, cache=True):
         if cache and (hidden_state in self.memo_covs):
@@ -76,10 +94,11 @@ class LFMHMM(_BaseHMM):
         B = np.asarray(self.spring_cons[hidden_state])
         C = np.asarray(self.damper_cons[hidden_state])
         l = self.lengthscales[hidden_state]
+        nv = self.noise_var
         # ts = self.sample_locations[segment_idx * lps: (segment_idx + 1) * lps]
         ts = self.sample_locations  # Each LFM is sampled over the same t
         assert len(ts) == self.locations_per_segment
-        cov = SecondOrderLFMKernel.K(B, C, l, ts.reshape((-1, 1)))
+        cov = SecondOrderLFMKernel.K(B, C, l, ts.reshape((-1, 1)), nv)
         self.memo_covs[hidden_state] = cov
         return cov
 
@@ -87,6 +106,8 @@ class LFMHMM(_BaseHMM):
         B = np.asarray(self.spring_cons[hidden_state])
         C = np.asarray(self.damper_cons[hidden_state])
         l = self.lengthscales[hidden_state]
+        # Notice that the noise variance doesn't appear here.
+        # The noise variance only affects Ktt.
         cov = SecondOrderLFMKernel.K_pred(B, C, l, t.reshape((-1, 1)),
                                           tp.reshape((-1, 1)))
         return cov
@@ -132,7 +153,8 @@ class LFMHMM(_BaseHMM):
                 cov = self.get_cov_function(i)
                 for t in xrange(number_of_segments):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
-                        self.observations[j][t], np.zeros(cov.shape[0]), cov,
+                        self.observations[j][t], np.zeros(cov.shape[0]),
+                        cov + self.noise_var * np.eye(cov.shape[0]),
                         True)  # Allowing singularity in cov. This is weird.
 
 

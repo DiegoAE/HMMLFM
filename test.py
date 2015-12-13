@@ -17,7 +17,7 @@ outputs = 1
 start_t = 0.1  # finding: it's problematic to choose 0 as starting point.
 end_t = 5.1 # finding: it's problematic to choose long times.
             # since the cov's tend to be the same.
-locations_per_segment = 150
+locations_per_segment = 100
 # list of lists in case of multiple outputs
 damper_constants = np.asarray([[1.], [3.], [6.]])
 spring_constants = np.asarray([[3.], [1.], [5.]])
@@ -25,6 +25,7 @@ spring_constants = np.asarray([[3.], [1.], [5.]])
 # lengthscales = np.asarray([8., 10., 12.])
 lengthscales = np.asarray([10., 10., 10.])
 # it seems to be quite problematic when you choose big lenghtscales
+noise_var = 0.0 # TODO: The Viterbi algorithm is failing when this noise is set.
 
 lfm_hmm = LFMHMM(
     number_lfm,
@@ -37,6 +38,7 @@ lfm_hmm = LFMHMM(
     damper_constants,
     spring_constants,
     lengthscales,
+    noise_var,
     verbose=True,
 )
 
@@ -58,29 +60,13 @@ def aux_get_end(start, end, locations_per_segment, segments):
 
 # segments = 10
 #
-# obs_1 = lfm_hmm.generate_observations(segments)
-#
+# obs_1, _ = lfm_hmm.generate_observations(segments)
 # computed_end = aux_get_end(start_t, end_t, locations_per_segment, segments)
 #
 # sample_locations = np.linspace(start_t, computed_end,
 #                                locations_per_segment * segments)
 #
 # plt.plot(sample_locations, obs_1.flatten())
-# for s in xrange(segments):
-#     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
-#                 color='red', linestyle='--')
-# plt.show()
-#
-# segments = 20
-#
-# obs_2 = lfm_hmm.generate_observations(segments)
-#
-# computed_end = aux_get_end(start_t, end_t, locations_per_segment, segments)
-#
-# sample_locations = np.linspace(start_t, computed_end,
-#                                locations_per_segment * segments)
-#
-# plt.plot(sample_locations, obs_2.flatten())
 # for s in xrange(segments):
 #     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
 #                 color='red', linestyle='--')
@@ -135,17 +121,17 @@ one_observation = obs[0][0]
 one_hidden_state = recovered_paths[0][0]
 # print one_observation, one_hidden_state
 
-t_test = np.linspace(start_t, end_t, 1000)
+t_test = np.linspace(start_t, end_t, 600)
 
 mean_pred, cov_pred = lfm_hmm.predict(t_test, one_hidden_state, one_observation)
 
+diag_cov = np.diag(cov_pred)
 
 plt.scatter(lfm_hmm.sample_locations, one_observation)
 plt.plot(t_test, mean_pred)
+# plt.plot(t_test, mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+# plt.plot(t_test, mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
 plt.show()
-diag_cov = np.diag(cov_pred)
-# plt.plot(t_test, mean_pred - 2 * np.sqrt(diag_cov), 'k--')
-# plt.plot(t_test, mean_pred + 2 * np.sqrt(diag_cov), 'k--')
 
 
 # Recomendaciones de mauricio para los problemas numericos

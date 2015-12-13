@@ -25,7 +25,7 @@ spring_constants = np.asarray([[3.], [1.], [5.]])
 # lengthscales = np.asarray([8., 10., 12.])
 lengthscales = np.asarray([10., 10., 10.])
 # it seems to be quite problematic when you choose big lenghtscales
-noise_var = 0.0 # TODO: The Viterbi algorithm is failing when this noise is set.
+noise_var = 0 # TODO: The Viterbi algorithm is failing when this noise is set.
 
 lfm_hmm = LFMHMM(
     number_lfm,
@@ -71,6 +71,24 @@ def aux_get_end(start, end, locations_per_segment, segments):
 #     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
 #                 color='red', linestyle='--')
 # plt.show()
+
+
+
+# Testing continous generation.
+# segments = 10
+#
+# obs_1, _ = lfm_hmm.generate_continuous_observations(segments)
+# computed_end = aux_get_end(start_t, end_t, locations_per_segment - 1, segments)
+#
+# sample_locations = np.linspace(start_t, computed_end,
+#                                (locations_per_segment - 1) * segments)
+#
+# plt.plot(sample_locations, obs_1.flatten())
+# for s in xrange(segments):
+#     plt.axvline(x=sample_locations[(lfm_hmm.locations_per_segment-1) * s],
+#                 color='red', linestyle='--')
+# plt.show()
+
 
 obs = []
 n_training_sequences = 5

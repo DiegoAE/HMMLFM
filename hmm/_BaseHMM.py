@@ -103,7 +103,64 @@ class _BaseHMM(object):
                         self.A[i][j]*B_map[j][t+1]*scaled_beta[t+1][j]
             scaled_beta[t][:] *= (1.0/scaling_c[t+1])
         return scaled_beta
-     
+
+    def _viterbi(self, observations=None):
+        '''
+        Find the best state sequence (path) using viterbi algorithm - a method of dynamic programming,
+        very similar to the forward-backward algorithm, with the added step of maximization and eventual
+        backtracing.
+
+        delta[t][i] = max(P[q1..qt=i,O1...Ot|model] - the path ending in Si and until time t,
+        that generates the highest probability.
+
+        psi[t][i] = argmax(delta[t-1][i]*aij) - the index of the maximizing state in time (t-1),
+        i.e: the previous state.
+        '''
+        # similar to the forward-backward algorithm.
+        # For now this method RESETS the input and B_map if input is provided.
+
+        if observations:
+            self.set_observations(observations)
+
+        output = numpy.zeros(self.B_maps.shape[0], dtype=object)
+        for s in xrange(self.B_maps.shape[0]):
+            #TODO: work with the log probability instead.
+            assert len(self.B_maps[s]) > 0
+            n_observations = len(self.B_maps[s][0])
+            delta = numpy.zeros((n_observations, self.n), dtype=self.precision)
+            psi = numpy.zeros((n_observations, self.n), dtype=self.precision)
+
+            # init
+            for x in xrange(self.n):
+                delta[0][x] = self.pi[x]*self.B_maps[s][x][0]
+                psi[0][x] = 0
+
+            # induction
+            for t in xrange(1, n_observations):
+                for j in xrange(self.n):
+                    for i in xrange(self.n):
+                        if (delta[t][j] < delta[t-1][i]*self.A[i][j]):
+                            delta[t][j] = delta[t-1][i]*self.A[i][j]
+                            psi[t][j] = i
+                    delta[t][j] *= self.B_maps[s][j][t]
+
+            # termination: find the maximum probability for
+            # the entire sequence (=highest prob path)
+            p_max = 0 # max value in time T (max)
+            # the states are discrete.
+            path = numpy.zeros(n_observations, dtype=numpy.int)
+            for i in xrange(self.n):
+                if (p_max < delta[n_observations-1][i]):
+                    p_max = delta[n_observations-1][i]
+                    path[n_observations-1] = i
+
+            # path backtracing
+            for i in xrange(1, n_observations):
+                path[n_observations-i-1] = \
+                    psi[n_observations-i][path[n_observations-i]]
+            output[s] = path
+        return output
+
     def _calcxi(self, B_map, alpha, beta, scaling_c):
         '''
         Calculates 'xi', a joint probability from the 'alpha' and 'beta' variables.
@@ -191,7 +248,7 @@ class _BaseHMM(object):
         '''
         self.pi = new_model['pi']
         self.A = new_model['A']
-        self._mapB()
+        # self._mapB() # TODO: uncomment this when the emission estimate is done
                 
     def trainiter(self):
         '''

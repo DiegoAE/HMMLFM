@@ -124,7 +124,8 @@ def K(B, C, lq, t):
     """ Computes the kernel covariance function for the second order LFM, using t against itself, k(t, t).
     Assumptions:
         *the output functions are evaluated in the same time steps.
-        *There is only one input latent force with RBF lengthscale lq"""
+        *There is only one input latent force with RBF lengthscale lq
+        *Returns the kernel evaluation of t against itself."""
     assert len(B) == len(C)
     D = len(B)
     idx = np.zeros(shape=(0,1), dtype = np.int8)
@@ -134,6 +135,32 @@ def K(B, C, lq, t):
         idx = np.vstack((idx, d * np.ones((time_length,1), dtype = np.int8)))
         stacked_time = np.vstack((stacked_time, t))
     return kffs(B, C, stacked_time, idx, stacked_time, idx, lq)
+
+
+def K_pred(B, C, lq, t, t_pred):
+    """ Computes the kernel covariance function for the second order LFM, using t against itself, k(t, t).
+    Assumptions:
+        *the output functions are evaluated in the same time steps.
+        *There is only one input latent force with RBF lengthscale lq.
+        *Returns the kernel evaluation of t against t_pred."""
+    assert len(B) == len(C)
+    D = len(B)
+    idx_t = np.zeros(shape=(0, 1), dtype = np.int8)
+    time_length_t = len(t)
+    stacked_time_t = np.zeros(shape=(0, 1))
+    for d in xrange(D):
+        idx_t = np.vstack((idx_t,
+                           d * np.ones((time_length_t,1), dtype=np.int8)))
+        stacked_time_t = np.vstack((stacked_time_t, t))
+    idx_t_pred = np.zeros(shape=(0, 1), dtype = np.int8)
+    time_length_t_pred = len(t_pred)
+    stacked_time_t_pred = np.zeros(shape=(0, 1))
+    for d in xrange(D):
+        idx_t_pred = np.vstack(
+            (idx_t_pred, d * np.ones((time_length_t_pred, 1), dtype=np.int8)))
+        stacked_time_t_pred = np.vstack((stacked_time_t_pred, t_pred))
+    return kffs(B, C, stacked_time_t, idx_t,
+                stacked_time_t_pred, idx_t_pred, lq)
 
 
 
@@ -174,4 +201,16 @@ if __name__ == "__main__":
     plt.figure(2)
     plt.plot(t1, realization[:ND1])
     plt.plot(t1, realization[ND1:])
+    plt.show()
+
+    # testing K_pred
+
+    B = np.asarray([Bd])
+    C = np.asarray([Cd])
+    t_ = np.array([1., 2., 3., 4.]).reshape((-1, 1))
+    t_pred = np.array([2]).reshape((-1, 1))
+    cov2 = K_pred(B, C, lq, t_, t_pred)
+    #print cov2.shape
+    plt.figure(3)
+    plt.imshow(cov2)
     plt.show()

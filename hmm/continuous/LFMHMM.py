@@ -67,7 +67,7 @@ class LFMHMM(_BaseHMM):
                 mean=np.zeros(cov.shape[0]), cov=cov)
             output[i, :] = realization
         print "Hidden States", hidden_states
-        return output
+        return output, hidden_states
 
 
     def get_cov_function(self, hidden_state, cache=True):
@@ -82,6 +82,30 @@ class LFMHMM(_BaseHMM):
         cov = SecondOrderLFMKernel.K(B, C, l, ts.reshape((-1, 1)))
         self.memo_covs[hidden_state] = cov
         return cov
+
+    def get_cov_function_explicit(self, hidden_state, t, tp):
+        B = np.asarray(self.spring_cons[hidden_state])
+        C = np.asarray(self.damper_cons[hidden_state])
+        l = self.lengthscales[hidden_state]
+        cov = SecondOrderLFMKernel.K_pred(B, C, l, t.reshape((-1, 1)),
+                                          tp.reshape((-1, 1)))
+        return cov
+
+    def predict(self, t_step, hidden_state, obs):
+        if self.verbose and \
+                (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
+            print "WARNING:prediction step.Time step out of the sampling region"
+        if hidden_state < 0 or hidden_state >= self.n:
+            raise LFMHMMError("ERROR: Invalid hidden state.")
+        obs = obs.reshape((-1, 1))
+        Ktt = self.get_cov_function(hidden_state)
+        ktstar = self.get_cov_function_explicit(
+            hidden_state, self.sample_locations, np.asarray(t_step))
+        Kstarstar = self.get_cov_function_explicit(
+            hidden_state, np.asarray(t_step),  np.asarray(t_step))
+        mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
+        cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
+        return mean_pred, cov_pred
 
     def _mapB(self):
         '''

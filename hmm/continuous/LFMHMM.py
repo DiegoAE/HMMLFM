@@ -53,7 +53,7 @@ class LFMHMM(_BaseHMM):
         else:
             raise LFMHMMError("reset init_type not supported.")
 
-    def generate_observations(self, segments):
+    def generate_observations(self, segments, hidden_s=None):
         output = np.zeros((segments, self.locations_per_segment),
                           dtype=self.precision)
         initial_state = np.nonzero(np.random.multinomial(1, self.pi))[0][0]
@@ -61,6 +61,8 @@ class LFMHMM(_BaseHMM):
         for x in xrange(1, segments):
             hidden_states.append(np.nonzero(np.random.multinomial(
                 1, self.A[hidden_states[-1]]))[0][0])
+        if hidden_s:
+            hidden_states = hidden_s
         for i in xrange(len(hidden_states)):
             state = hidden_states[i]
             cov = self.get_cov_function(state)
@@ -123,6 +125,7 @@ class LFMHMM(_BaseHMM):
         return cov
 
     def predict(self, t_step, hidden_state, obs):
+        # TODO: there is a bad smell here. obs vs set observations.
         if self.verbose and \
                 (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
             print "WARNING:prediction step.Time step out of the sampling region"
@@ -142,7 +145,8 @@ class LFMHMM(_BaseHMM):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
-
+        # TODO: Should I erase the covariance cache here?
+        self.memo_covs = {}
         if not self.observations:
             raise LFMHMMError("The training sequences haven't been set.")
 

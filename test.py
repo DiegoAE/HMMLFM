@@ -17,7 +17,7 @@ outputs = 1
 start_t = 0.1  # finding: it's problematic to choose 0 as starting point.
 end_t = 5.1 # finding: it's problematic to choose long times.
             # since the cov's tend to be the same.
-locations_per_segment = 100
+locations_per_segment = 20
 # list of lists in case of multiple outputs
 damper_constants = np.asarray([[1.], [3.], [6.]])
 spring_constants = np.asarray([[3.], [1.], [5.]])
@@ -73,21 +73,6 @@ def aux_get_end(start, end, locations_per_segment, segments):
 # plt.show()
 
 
-
-# Testing continous generation.
-# segments = 10
-#
-# obs_1, _ = lfm_hmm.generate_continuous_observations(segments)
-# computed_end = aux_get_end(start_t, end_t, locations_per_segment - 1, segments)
-#
-# sample_locations = np.linspace(start_t, computed_end,
-#                                (locations_per_segment - 1) * segments)
-#
-# plt.plot(sample_locations, obs_1.flatten())
-# for s in xrange(segments):
-#     plt.axvline(x=sample_locations[(lfm_hmm.locations_per_segment-1) * s],
-#                 color='red', linestyle='--')
-# plt.show()
 
 
 obs = []
@@ -145,6 +130,9 @@ mean_pred, cov_pred = lfm_hmm.predict(t_test, one_hidden_state, one_observation)
 
 diag_cov = np.diag(cov_pred)
 
+
+print recovered_paths - hidden_states
+
 plt.scatter(lfm_hmm.sample_locations, one_observation)
 plt.plot(t_test, mean_pred)
 # plt.plot(t_test, mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
@@ -160,6 +148,138 @@ plt.show()
 # 3. Sumar un jitter para la matriz de covarianza.
 # 4. Mirar el codigo de Matlab por que no funciona?
 # 5. Graficar la matriz de covarianza obtenida para visualizar que puede estar fallando. Done. Good hint!
+
+
+
+
+# First: experiment Validation of the viterbi algorithm
+
+# now the lfm_hmm has the estimated pi and A
+# it's necessary to create a new instance of LFMHMM
+
+lfm_hmm_reference = LFMHMM(
+    number_lfm,
+    A,
+    pi,
+    outputs,
+    start_t,
+    end_t,
+    locations_per_segment,
+    damper_constants,
+    spring_constants,
+    lengthscales,
+    noise_var,
+    verbose=True,
+)
+
+obs = []
+n_training_sequences = 20
+hidden_states_reference = np.zeros(n_training_sequences, dtype=object)
+for i in xrange(n_training_sequences):
+    segments = np.random.randint(1, 100)
+    print "The %d-th sequence has length %d" % (i, segments)
+    output, hidden = lfm_hmm_reference.generate_observations(segments)
+    obs.append(output)
+    hidden_states_reference[i] = hidden
+
+
+recovered_paths = lfm_hmm._viterbi(obs)
+
+diff = recovered_paths - hidden_states_reference
+
+mismatchs = 0
+total_segments = 0
+for i in xrange(len(diff)):
+    mismatchs += np.count_nonzero(diff[i])
+    total_segments += len(diff[i])
+print "the viterbi algorithm failed in %d from %d" % (mismatchs, total_segments)
+
+
+# Second experiment: Regression
+regression_observation = [obs[0]]
+hidden_states_ground_truth = np.array(hidden_states_reference[0])
+lfm_hmm.set_observations(regression_observation)
+regression_hidden_states = lfm_hmm._viterbi()[0]
+
+print "The number of wrong predicted motor primitives is %d" % \
+      np.count_nonzero(regression_hidden_states - hidden_states_ground_truth)
+
+considered_segments = min(len(regression_hidden_states), 5)  # a few segments
+number_testing_points = 100
+
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+means = np.zeros((considered_segments, number_testing_points))
+for i in xrange(considered_segments):
+    c_hidden_state = regression_hidden_states[i]
+    c_obv = regression_observation[0][i]
+    t_test = np.linspace(start_t, end_t, number_testing_points)  # predicting more time steps
+    mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
+    means[i, :] = mean_pred.flatten()
+    plt.scatter(last_value + lfm_hmm.sample_locations, c_obv, facecolors='none',
+                label=[None, 'observations'][i == 0])
+    plt.plot(last_value + t_test, mean_pred, color = 'green',
+             label=[None, 'predicted mean'][i == 0])
+    last_value = last_value + end_t
+    plt.axvline(x=last_value, color='red', linestyle='--')
+
+
+plt.title("Fitting of the model given an observation sequence.")
+plt.legend(loc='upper left')
+plt.show()
+
+#print regression_hidden_states
+
+# Third experiment
+
+number_testing_points = 191
+
+lfm_validation = LFMHMM(
+    number_lfm,
+    A,
+    pi,
+    outputs,
+    start_t,
+    end_t,
+    number_testing_points,
+    damper_constants,
+    spring_constants,
+    lengthscales,
+    noise_var,
+    verbose=True,
+)
+
+n_segments = 5
+full_observation, reference_states = lfm_validation.generate_observations(n_segments)
+sampled_observation = np.zeros((n_segments, 20))
+for i in xrange(n_segments):
+    for j in xrange(20):
+        sampled_observation[i][j] = full_observation[i][j * 10]
+
+obtained_states = lfm_hmm._viterbi([sampled_observation])
+
+
+rmse = 0
+for i in xrange(n_segments):
+    c_hidden_state = obtained_states[0][i]
+    t_test = np.linspace(start_t, end_t, number_testing_points)  # predicting more time steps
+    mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state,
+                                          sampled_observation[i])
+    rmse += np.power(mean_pred.flatten() - full_observation[i].flatten(), 2).sum()
+
+print "The RMSE error in regression is %f" % np.sqrt(rmse)
+
+# the same motor primitive were recovered.
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -110,11 +110,14 @@ class _BaseHMM(object):
         very similar to the forward-backward algorithm, with the added step of maximization and eventual
         backtracing.
 
-        delta[t][i] = max(P[q1..qt=i,O1...Ot|model] - the path ending in Si and until time t,
+        delta[t][i] = max(P[q1..qt=i,O1...Ot|model]) - the path ending in Si and until time t,
         that generates the highest probability.
 
         psi[t][i] = argmax(delta[t-1][i]*aij) - the index of the maximizing state in time (t-1),
         i.e: the previous state.
+
+        Notice that actually the Viterbi algorithm is implemented taking the
+        logarithm of the probabilities because of numerical stability issues.
         '''
         # similar to the forward-backward algorithm.
         # For now this method RESETS the input and B_map if input is provided.
@@ -132,17 +135,18 @@ class _BaseHMM(object):
 
             # init
             for x in xrange(self.n):
-                delta[0][x] = self.pi[x]*self.B_maps[s][x][0]
+                delta[0][x] = numpy.log(self.pi[x]) + numpy.log(
+                    self.B_maps[s][x][0])
                 psi[0][x] = 0
 
             # induction
             for t in xrange(1, n_observations):
                 for j in xrange(self.n):
                     for i in xrange(self.n):
-                        if (delta[t][j] < delta[t-1][i]*self.A[i][j]):
-                            delta[t][j] = delta[t-1][i]*self.A[i][j]
+                        if delta[t][j] < delta[t-1][i]+numpy.log(self.A[i][j]):
+                            delta[t][j] = delta[t-1][i]+numpy.log(self.A[i][j])
                             psi[t][j] = i
-                    delta[t][j] *= self.B_maps[s][j][t]
+                    delta[t][j] += numpy.log(self.B_maps[s][j][t])
 
             # termination: find the maximum probability for
             # the entire sequence (=highest prob path)
@@ -150,7 +154,7 @@ class _BaseHMM(object):
             # the states are discrete.
             path = numpy.zeros(n_observations, dtype=numpy.int)
             for i in xrange(self.n):
-                if (p_max < delta[n_observations-1][i]):
+                if p_max < delta[n_observations-1][i]:
                     p_max = delta[n_observations-1][i]
                     path[n_observations-1] = i
 

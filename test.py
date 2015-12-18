@@ -15,8 +15,8 @@ print "hidden state transition matrix\n", A
 number_lfm = 3
 outputs = 1
 start_t = 0.1  # finding: it's problematic to choose 0 as starting point.
-end_t = 5.1 # finding: it's problematic to choose long times.
-            # since the cov's tend to be the same.
+end_t = 5.1  # finding: it's problematic to choose long times.
+# since the cov's tend to be the same.
 locations_per_segment = 20
 # list of lists in case of multiple outputs
 damper_constants = np.asarray([[1.], [3.], [6.]])
@@ -25,7 +25,7 @@ spring_constants = np.asarray([[3.], [1.], [5.]])
 # lengthscales = np.asarray([8., 10., 12.])
 lengthscales = np.asarray([10., 10., 10.])
 # it seems to be quite problematic when you choose big lenghtscales
-noise_var = 0 # TODO: The Viterbi algorithm is failing when this noise is set.
+noise_var = 0.0005  # Viterbi starts failing when this noise is set.
 
 lfm_hmm = LFMHMM(
     number_lfm,
@@ -42,37 +42,19 @@ lfm_hmm = LFMHMM(
     verbose=True,
 )
 
-# segments = 10
-#
-# obs = lfm_hmm.generate_observations(segments)
-#
-# plt.plot(np.linspace(start_t, end_t , segments), obs.flatten())
-# for s in xrange(segments):
-#     plt.axvline(x=lfm_hmm.sample_locations[lfm_hmm.locations_per_segment * s],
-#                 color='red', linestyle='--')
-# plt.show()
-
-def aux_get_end(start, end, locations_per_segment, segments):
-    assert locations_per_segment > 1
-    ret = start + (end - start) * segments
-    ret += ((end - start)/(locations_per_segment - 1)) * (segments - 1)
-    return ret
+# Plotting
 
 # segments = 10
-#
 # obs_1, _ = lfm_hmm.generate_observations(segments)
-# computed_end = aux_get_end(start_t, end_t, locations_per_segment, segments)
-#
-# sample_locations = np.linspace(start_t, computed_end,
-#                                locations_per_segment * segments)
-#
-# plt.plot(sample_locations, obs_1.flatten())
-# for s in xrange(segments):
-#     plt.axvline(x=sample_locations[lfm_hmm.locations_per_segment * s],
-#                 color='red', linestyle='--')
+# last_value = 0
+# for i in xrange(segments):
+#     plt.axvline(x=last_value, color='red', linestyle='--')
+#     sl = lfm_hmm.sample_locations
+#     plt.plot(last_value + sl - sl[0], obs_1[i])
+#     print last_value
+#     print last_value + sl - sl[0]
+#     last_value += end_t - start_t
 # plt.show()
-
-
 
 
 obs = []
@@ -96,17 +78,11 @@ for i in xrange(n_training_sequences):
 # plt.imshow(lfm_hmm.get_cov_function(2))
 # plt.show()
 
-####
-
 lfm_hmm.set_observations(obs)
 lfm_hmm.reset()  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
-
-# print "====  B_maps[0] ======="
-# print lfm_hmm.B_maps[0]
-# print "======================="
 
 print "start training"
 
@@ -135,8 +111,8 @@ print recovered_paths - hidden_states
 
 plt.scatter(lfm_hmm.sample_locations, one_observation)
 plt.plot(t_test, mean_pred)
-# plt.plot(t_test, mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
-# plt.plot(t_test, mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+plt.plot(t_test, mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+plt.plot(t_test, mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
 plt.show()
 
 
@@ -148,8 +124,6 @@ plt.show()
 # 3. Sumar un jitter para la matriz de covarianza.
 # 4. Mirar el codigo de Matlab por que no funciona?
 # 5. Graficar la matriz de covarianza obtenida para visualizar que puede estar fallando. Done. Good hint!
-
-
 
 
 # First: experiment Validation of the viterbi algorithm
@@ -216,11 +190,15 @@ for i in xrange(considered_segments):
     t_test = np.linspace(start_t, end_t, number_testing_points)  # predicting more time steps
     mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
     means[i, :] = mean_pred.flatten()
-    plt.scatter(last_value + lfm_hmm.sample_locations, c_obv, facecolors='none',
+    sl = lfm_hmm.sample_locations
+    plt.scatter(last_value + sl - sl[0], c_obv, facecolors='none',
                 label=[None, 'observations'][i == 0])
-    plt.plot(last_value + t_test, mean_pred, color = 'green',
+    plt.plot(last_value + t_test - t_test[0], mean_pred, color = 'green',
              label=[None, 'predicted mean'][i == 0])
-    last_value = last_value + end_t
+    diag_cov = np.diag(cov_pred)
+    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+    last_value = last_value + end_t - start_t
     plt.axvline(x=last_value, color='red', linestyle='--')
 
 

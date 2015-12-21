@@ -145,7 +145,7 @@ class LFMHMM(_BaseHMM):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
-        # TODO: Should I erase the covariance cache here?
+        # Erasing the covariance cache
         self.memo_covs = {}
         if not self.observations:
             raise LFMHMMError("The training sequences haven't been set.")

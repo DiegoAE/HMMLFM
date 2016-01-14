@@ -139,7 +139,7 @@ def K(B, C, lq, t, noise_var):
 
 
 def K_pred(B, C, lq, t, t_pred):
-    """ Computes the kernel covariance function for the second order LFM, using t against itself, k(t, t).
+    """ Computes the kernel covariance function for the second order LFM, using t against t_pred, k(t, t_pred).
     Assumptions:
         *the output functions are evaluated in the same time steps.
         *There is only one input latent force with RBF lengthscale lq.

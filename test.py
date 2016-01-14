@@ -58,7 +58,7 @@ lfm_hmm = LFMHMM(
 
 
 obs = []
-n_training_sequences = 5
+n_training_sequences = 10
 hidden_states = np.zeros(n_training_sequences, dtype=object)
 for i in xrange(n_training_sequences):
     segments = np.random.randint(1, 100)

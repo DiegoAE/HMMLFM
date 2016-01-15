@@ -252,7 +252,6 @@ class _BaseHMM(object):
         '''
         self.pi = new_model['pi']
         self.A = new_model['A']
-        # self._mapB() # TODO: uncomment this when the emission estimate is done
                 
     def trainiter(self):
         '''
@@ -274,6 +273,11 @@ class _BaseHMM(object):
         
         # update the model with the new estimation
         self._updatemodel(new_model)
+
+        # Since the emission parameters were reestimated the emission
+        # probabilities need to be computed again. This can be avoided
+        # sometimes for efficiency (e.g the emission parameters are fixed).
+        self._mapB()
         
         # calculate the log likelihood of the new model.
         prob_new = self.forwardbackward()
@@ -361,20 +365,21 @@ class _BaseHMM(object):
     def _reestimate(self, stats):
         '''
         Performs the 'M' step of the Baum-Welch algorithm.
-        
+
         Deriving classes should override (extend) this method to include
         any additional computations their model requires.
-        
+
         Returns 'new_model', a dictionary containing the new maximized
         model's parameters.
 
         This method assumes that the observations were already set
         through _mapB.
-        '''        
+        '''
         new_model = {
             'pi': self._reestimatePi(stats['gammas']),
             'A': self._reestimateA(stats['xis'], stats['gammas']),
-        } #TODO: reestimate the observation model.
+            # Reestimate the observation model in the child classes.
+        }
         return new_model
     
     def _baumwelch(self):

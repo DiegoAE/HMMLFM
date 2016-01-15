@@ -37,10 +37,26 @@ class LFMHMM(_BaseHMM):
         self.sample_locations = np.linspace(start_t, end_t,
                                             locations_per_segment)
         self.locations_per_segment = locations_per_segment
+        # TODO: make the number of latent forces a parameter.
+        # and the same thing with the sensitivities. For now all them are 1.
+        self.number_latent_f = 1
+        # implicit assumption of sensitivities being equal to one.
+        self.sensi = np.ones((n, number_outputs, self.number_latent_f))
+        # ======
+        # Once the the get_cov_* and predict functions are refactored I can
+        # get rid of this.
         self.spring_cons = spring
         self.damper_cons = damper
         self.lengthscales = lengthscales
         self.noise_var = noise_var
+        # ======
+        pdict = {}
+        pdict['spring'] = spring
+        pdict['damper'] = damper
+        pdict['sensi'] = self.sensi
+        pdict['noise_var'] = noise_var
+        pdict['lengthscales'] = lengthscales
+        # covariance memoization
         self.memo_covs = {}
         self.lfms = np.zeros(n, dtype='object')
         # ======
@@ -53,17 +69,35 @@ class LFMHMM(_BaseHMM):
             stacked_time = np.vstack((stacked_time,
                                       self.sample_locations.reshape(-1,1)))
         # ======
-        # TODO: make the number of latent forces a parameter.
-        # and the same thing with the sensitivities. For now all them are 1.
-        self.number_latent_f = 1
-        self.sensi = np.ones((number_outputs, self.number_latent_f))
+
         for i in xrange(n):
             params = np.concatenate((np.log(spring[i]), np.log(damper[i]),
-                                     np.hstack(self.sensi),
-                                     np.log(np.array([lengthscales[i]])),
+                                     np.hstack(self.sensi[i]),
+                                     np.log(lengthscales[i]),
                                      np.log(np.array([noise_var]))), axis=0)
             self.lfms[i] = lfm2(1, number_outputs, params)
             self.lfms[i].set_inputs(stacked_time, idx)
+
+    def pack_params(self, params_dict):
+        # TODO: Test this function and see if it necessary an unpack function.
+        # Context: reestimate parameters has to with self.LFMparams
+        # and in the optimization process you should work with the flattened
+        # array.
+        spring = params_dict['spring']
+        damper = params_dict['damper']
+        sensi = params_dict['sensi']
+        lengthscales = params_dict['lengthscales']
+        noise_var = params_dict['noise_var']
+        packed_params = []
+        for i in xrange(self.n):
+            p = np.concatenate((np.log(spring[i]), np.log(damper[i]),
+                                np.hstack(sensi[i]),
+                                np.log(lengthscales[i])), axis=0)
+            packed_params.append(p)
+        packed_params = np.concatenate(packed_params)
+        packed_params = np.concatenate((packed_params,
+                                        np.log(np.array([noise_var])) ))
+        return packed_params
 
 
     def reset(self,init_type='uniform'):
@@ -132,9 +166,11 @@ class LFMHMM(_BaseHMM):
         return cov
 
     def get_cov_function_explicit(self, hidden_state, t, tp):
+        # TODO: This function doesn't take into account the existence of
+        # lfm2.py. So it can be refactored.
         B = np.asarray(self.spring_cons[hidden_state])
         C = np.asarray(self.damper_cons[hidden_state])
-        l = self.lengthscales[hidden_state]
+        l = self.lengthscales[hidden_state][0]
         # Notice that the noise variance doesn't appear here.
         # The noise variance only affects Ktt.
         cov = SecondOrderLFMKernel.K_pred(B, C, l, t.reshape((-1, 1)),
@@ -143,6 +179,8 @@ class LFMHMM(_BaseHMM):
 
     def predict(self, t_step, hidden_state, obs):
         # TODO: there is a bad smell here. obs vs set observations.
+        # This function doesn't take into account the existence of lfm2.py. So
+        # it can be refactored.
         if self.verbose and \
                 (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
             print "WARNING:prediction step.Time step out of the sampling region"
@@ -157,6 +195,22 @@ class LFMHMM(_BaseHMM):
         mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
         cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
         return mean_pred, cov_pred
+
+    # def set_observations(self, observations):
+    #     # TODO: not sure if I have to set outputs here for lfms.
+    #     _BaseHMM.set_observations(self, observations)
+
+    def _reestimateLFMparams(self, gammas):
+        return None
+
+    def _reestimate(self, stats):
+        new_model = _BaseHMM._reestimate(self, stats)
+        new_model['LFMparams'] = self._reestimateLFMparams(stats['gammas'])
+        return new_model
+
+    def _updatemodel(self, new_model):
+        self.LFMparams = new_model['LFMparams']
+        _BaseHMM._updatemodel(self, new_model)
 
     def _mapB(self):
         '''
@@ -185,8 +239,7 @@ class LFMHMM(_BaseHMM):
                 for t in xrange(number_of_segments):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
                         self.observations[j][t], np.zeros(cov.shape[0]),
-                        cov + self.noise_var * np.eye(cov.shape[0]),
-                        True)  # Allowing singularity in cov. This is weird.
+                        cov, True)  #Allowing singularity in cov. This is weird.
 
 
 

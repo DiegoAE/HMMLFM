@@ -23,7 +23,7 @@ damper_constants = np.asarray([[1.], [3.], [6.]])
 spring_constants = np.asarray([[3.], [1.], [5.]])
 # implicitly assuming there is only one latent force governing the system.
 # lengthscales = np.asarray([8., 10., 12.])
-lengthscales = np.asarray([10., 10., 10.])
+lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
 noise_var = 0.0005  # Viterbi starts failing when this noise is set.
 

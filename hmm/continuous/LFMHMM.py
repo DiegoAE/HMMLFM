@@ -1,6 +1,7 @@
 __author__ = 'diego'
 
 from hmm._BaseHMM import _BaseHMM
+from hmm.lfm2kernel.lfm2 import lfm2
 from hmm.lfm2kernel import SecondOrderLFMKernel
 from scipy import stats
 import numpy as np
@@ -41,6 +42,29 @@ class LFMHMM(_BaseHMM):
         self.lengthscales = lengthscales
         self.noise_var = noise_var
         self.memo_covs = {}
+        self.lfms = np.zeros(n, dtype='object')
+        # ======
+        # TODO: I think this part of the code should be in lfm2.py
+        idx = np.zeros(shape=(0, 1), dtype=np.int8)
+        time_length = len(self.sample_locations)
+        stacked_time = np.zeros(shape=(0, 1))
+        for d in xrange(number_outputs):
+            idx = np.vstack((idx, d * np.ones((time_length, 1), dtype=np.int8)))
+            stacked_time = np.vstack((stacked_time,
+                                      self.sample_locations.reshape(-1,1)))
+        # ======
+        # TODO: make the number of latent forces a parameter.
+        # and the same thing with the sensitivities. For now all them are 1.
+        self.number_latent_f = 1
+        self.sensi = np.ones((number_outputs, self.number_latent_f))
+        for i in xrange(n):
+            params = np.concatenate((np.log(spring[i]), np.log(damper[i]),
+                                     np.hstack(self.sensi),
+                                     np.log(np.array([lengthscales[i]])),
+                                     np.log(np.array([noise_var]))), axis=0)
+            self.lfms[i] = lfm2(1, number_outputs, params)
+            self.lfms[i].set_inputs(stacked_time, idx)
+
 
     def reset(self,init_type='uniform'):
         '''
@@ -99,18 +123,11 @@ class LFMHMM(_BaseHMM):
         print "Hidden States", hidden_states
         return output, hidden_states
 
-
     def get_cov_function(self, hidden_state, cache=True):
         if cache and (hidden_state in self.memo_covs):
             return self.memo_covs[hidden_state]
-        B = np.asarray(self.spring_cons[hidden_state])
-        C = np.asarray(self.damper_cons[hidden_state])
-        l = self.lengthscales[hidden_state]
-        nv = self.noise_var
-        # ts = self.sample_locations[segment_idx * lps: (segment_idx + 1) * lps]
-        ts = self.sample_locations  # Each LFM is sampled over the same t
-        assert len(ts) == self.locations_per_segment
-        cov = SecondOrderLFMKernel.K(B, C, l, ts.reshape((-1, 1)), nv)
+        assert hidden_state < self.n
+        cov = self.lfms[hidden_state].Kyy()
         self.memo_covs[hidden_state] = cov
         return cov
 

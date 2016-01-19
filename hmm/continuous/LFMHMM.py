@@ -56,6 +56,7 @@ class LFMHMM(_BaseHMM):
         pdict['sensi'] = self.sensi
         pdict['noise_var'] = noise_var
         pdict['lengthscales'] = lengthscales
+        self.LFMparams = pdict
         # covariance memoization
         self.memo_covs = {}
         self.lfms = np.zeros(n, dtype='object')
@@ -79,8 +80,7 @@ class LFMHMM(_BaseHMM):
             self.lfms[i].set_inputs(stacked_time, idx)
 
     def pack_params(self, params_dict):
-        # TODO: Test this function and see if it necessary an unpack function.
-        # Context: reestimate parameters has to with self.LFMparams
+        # Note: reestimate parameters has to work with self.LFMparams
         # and in the optimization process you should work with the flattened
         # array.
         spring = params_dict['spring']
@@ -99,15 +99,58 @@ class LFMHMM(_BaseHMM):
                                         np.log(np.array([noise_var])) ))
         return packed_params
 
+    def unpack_params(self, params_array):
+        ret_dict = {}
+        spring = np.zeros((self.n, self.number_outputs))
+        damper = np.zeros((self.n, self.number_outputs))
+        sensi = np.zeros((self.n, self.number_outputs, self.number_latent_f))
+        lengthscales = np.zeros((self.n, self.number_latent_f))
+        noise_var = 0
+        idx = 0
+        for i in xrange(self.n):
+            for j in xrange(self.number_outputs):
+                spring[i][j] = np.exp(params_array[idx])
+                idx += 1
+            for j in xrange(self.number_outputs):
+                damper[i][j] = np.exp(params_array[idx])
+                idx += 1
+            for j in xrange(self.number_outputs):
+                for k in xrange(self.number_latent_f):
+                    sensi[i][j][k] = params_array[idx]
+                    idx += 1
+            for j in xrange(self.number_latent_f):
+                lengthscales[i][j] = np.exp(params_array[idx])
+                idx += 1
+        noise_var = np.exp(params_array[idx])
+        idx += 1
+        assert idx == np.size(params_array)
+        ret_dict['spring'] = spring
+        ret_dict['damper'] = damper
+        ret_dict['sensi'] = sensi
+        ret_dict['noise_var'] = noise_var
+        ret_dict['lengthscales'] = lengthscales
+        return ret_dict
 
-    def reset(self,init_type='uniform'):
+
+    def reset(self,init_type='uniform', emissions_reset=True):
         '''
         If required, initalize the model parameters according the selected policy
         '''
         if init_type == 'uniform':
-            self.pi = np.ones( (self.n), dtype=self.precision) *(1.0/self.n)
-            self.A = np.ones( (self.n,self.n), dtype=self.precision)*(1.0/self.n)
-            # TODO: allow the emission estimation, i.e. reestimateB
+            self.pi = np.ones(self.n, dtype=self.precision)*(1.0/self.n)
+            self.A = np.ones((self.n,self.n), dtype=self.precision)*(1.0/self.n)
+            if emissions_reset:
+                print type(self.n), type(self.number_outputs)
+                self.LFMparams['spring'] = np.random.rand(
+                        self.n, self.number_outputs) * 2.
+                self.LFMparams['damper'] = np.random.rand(
+                        self.n, self.number_outputs) * 2.
+                self.LFMparams['lengthscales'] = np.random.rand(
+                        self.n, self.number_outputs) * 2.
+                self.LFMparams['sensi'] = np.random.randn(
+                        self.n, self.number_outputs, self.number_latent_f)
+                # Assuming the same noise for all the outputs and LFM's.
+                self.LFMparams['noise_var'] = 1e2
         else:
             raise LFMHMMError("reset init_type not supported.")
 
@@ -210,6 +253,10 @@ class LFMHMM(_BaseHMM):
 
     def _updatemodel(self, new_model):
         self.LFMparams = new_model['LFMparams']
+        # TODO: Here I go
+        # 1. you need to update the self.lfms in reset.
+        # 2. Figure out how the best way to use this function since
+        # it's receives a dict and it could the set_params equivalent function.
         _BaseHMM._updatemodel(self, new_model)
 
     def _mapB(self):
@@ -240,8 +287,6 @@ class LFMHMM(_BaseHMM):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
                         self.observations[j][t], np.zeros(cov.shape[0]),
                         cov, True)  #Allowing singularity in cov. This is weird.
-
-
 
 
 

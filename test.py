@@ -42,6 +42,14 @@ lfm_hmm = LFMHMM(
     verbose=True,
 )
 
+# Testing packing and unpacking
+print "Testing packing and unpacking: ",
+test_unit_1 = lfm_hmm.unpack_params(lfm_hmm.pack_params(lfm_hmm.LFMparams))
+test_unit_2 = lfm_hmm.LFMparams
+for k in test_unit_2.keys():
+    assert np.allclose(test_unit_2[k], test_unit_1[k])
+print "Accepted!"
+
 # Plotting
 
 # segments = 10
@@ -79,10 +87,11 @@ for i in xrange(n_training_sequences):
 # plt.show()
 
 lfm_hmm.set_observations(obs)
-lfm_hmm.reset()  # Reset to A and pi
+lfm_hmm.reset(emissions_reset=False)  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
+# print lfm_hmm.LFMparams
 
 print "start training"
 
@@ -91,6 +100,7 @@ lfm_hmm.train()
 print "after training"
 print lfm_hmm.pi
 print lfm_hmm.A
+# print lfm_hmm.LFMparams
 
 recovered_paths = lfm_hmm._viterbi()
 

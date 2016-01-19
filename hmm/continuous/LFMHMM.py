@@ -29,8 +29,6 @@ class LFMHMM(_BaseHMM):
         assert all([len(x) == number_outputs for x in spring])
         _BaseHMM.__init__(self, n, None, precision, verbose)
         self.n = n  # number of hidden states
-        self.A = A  # transition matrix
-        self.pi = pi  # initial state PMF
         self.number_outputs = number_outputs
         self.start_t = start_t
         self.end_t = end_t
@@ -70,14 +68,13 @@ class LFMHMM(_BaseHMM):
             stacked_time = np.vstack((stacked_time,
                                       self.sample_locations.reshape(-1,1)))
         # ======
-
         for i in xrange(n):
-            params = np.concatenate((np.log(spring[i]), np.log(damper[i]),
-                                     np.hstack(self.sensi[i]),
-                                     np.log(lengthscales[i]),
-                                     np.log(np.array([noise_var]))), axis=0)
-            self.lfms[i] = lfm2(1, number_outputs, params)
+            self.lfms[i] = lfm2(1, number_outputs)
             self.lfms[i].set_inputs(stacked_time, idx)
+        # Setting the transition matrix, the initial stater PMF and the emission
+        # params.
+        params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
+        self._updatemodel(params_to_set)
 
     def pack_params(self, params_dict):
         # Note: reestimate parameters has to work with self.LFMparams
@@ -137,20 +134,23 @@ class LFMHMM(_BaseHMM):
         If required, initalize the model parameters according the selected policy
         '''
         if init_type == 'uniform':
-            self.pi = np.ones(self.n, dtype=self.precision)*(1.0/self.n)
-            self.A = np.ones((self.n,self.n), dtype=self.precision)*(1.0/self.n)
+            pi = np.ones(self.n, dtype=self.precision)*(1.0/self.n)
+            A = np.ones((self.n,self.n), dtype=self.precision)*(1.0/self.n)
+            new_params = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
             if emissions_reset:
-                print type(self.n), type(self.number_outputs)
-                self.LFMparams['spring'] = np.random.rand(
+                LFMparams = {}
+                LFMparams['spring'] = np.random.rand(
                         self.n, self.number_outputs) * 2.
-                self.LFMparams['damper'] = np.random.rand(
+                LFMparams['damper'] = np.random.rand(
                         self.n, self.number_outputs) * 2.
-                self.LFMparams['lengthscales'] = np.random.rand(
+                LFMparams['lengthscales'] = np.random.rand(
                         self.n, self.number_outputs) * 2.
-                self.LFMparams['sensi'] = np.random.randn(
+                LFMparams['sensi'] = np.random.randn(
                         self.n, self.number_outputs, self.number_latent_f)
                 # Assuming the same noise for all the outputs and LFM's.
-                self.LFMparams['noise_var'] = 1e2
+                LFMparams['noise_var'] = 1e2
+                new_params['LFMparams'] = LFMparams
+            self._updatemodel(new_params)
         else:
             raise LFMHMMError("reset init_type not supported.")
 
@@ -244,7 +244,8 @@ class LFMHMM(_BaseHMM):
     #     _BaseHMM.set_observations(self, observations)
 
     def _reestimateLFMparams(self, gammas):
-        return None
+        # TODO: IMPORTANT
+        return self.LFMparams
 
     def _reestimate(self, stats):
         new_model = _BaseHMM._reestimate(self, stats)
@@ -253,10 +254,14 @@ class LFMHMM(_BaseHMM):
 
     def _updatemodel(self, new_model):
         self.LFMparams = new_model['LFMparams']
-        # TODO: Here I go
-        # 1. you need to update the self.lfms in reset.
-        # 2. Figure out how the best way to use this function since
-        # it's receives a dict and it could the set_params equivalent function.
+        lfms_params = self.pack_params(self.LFMparams)
+        per_lfm = 2*self.number_outputs + \
+                  self.number_latent_f * (1 + self.number_outputs)
+        for i in xrange(self.n):
+            no_noise_params = lfms_params[i * per_lfm: (i + 1) * per_lfm]
+            noise_param = lfms_params[-1:]
+            self.lfms[i].set_params(
+                    np.concatenate((no_noise_params, noise_param)), False)
         _BaseHMM._updatemodel(self, new_model)
 
     def _mapB(self):

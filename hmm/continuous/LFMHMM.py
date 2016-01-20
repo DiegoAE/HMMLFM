@@ -244,8 +244,24 @@ class LFMHMM(_BaseHMM):
     #     _BaseHMM.set_observations(self, observations)
 
     def _reestimateLFMparams(self, gammas):
-        # TODO: IMPORTANT
+        # TODO: working on this
+        print "===", self.objective_for_hyperparameters(gammas)
+        # the emissios parameters are not being changed at all.
         return self.LFMparams
+
+    def objective_for_hyperparameters(self, gammas):
+        # Seems to be working fine. Try to figure out a way to test this.
+        weighted_sum = 0.0
+        n_sequences = len(gammas)
+        for i in xrange(self.n):
+            current_lfm = self.lfms[i]
+            for s in xrange(n_sequences):
+                gamma = gammas[s]
+                n_observations = len(gamma)
+                for t in xrange(n_observations):
+                    current_lfm.set_outputs(self.observations[s][t])
+                    weighted_sum += gamma[t][i] * current_lfm.LLeval()
+        return weighted_sum
 
     def _reestimate(self, stats):
         new_model = _BaseHMM._reestimate(self, stats)
@@ -257,6 +273,7 @@ class LFMHMM(_BaseHMM):
         lfms_params = self.pack_params(self.LFMparams)
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
+        # updating each of the lfm's (i.e. hidden states) with the new params.
         for i in xrange(self.n):
             no_noise_params = lfms_params[i * per_lfm: (i + 1) * per_lfm]
             noise_param = lfms_params[-1:]
@@ -291,7 +308,8 @@ class LFMHMM(_BaseHMM):
                 for t in xrange(number_of_segments):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
                         self.observations[j][t], np.zeros(cov.shape[0]),
-                        cov, True)  #Allowing singularity in cov. This is weird.
+                        cov, False)  # Allowing singularity in cov sometimes.
+                                     # This is weird.
 
 
 

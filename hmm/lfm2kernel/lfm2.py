@@ -25,13 +25,16 @@ class lfm2():
         self.l2pi = np.log(2.*np.pi)
         # Forcing to not update without observations.
         self.set_params(self.params, False)  # forcing to not update.
+        self.updated = False  # flag to keep track if the model is 'updated'.
 
     def set_inputs(self, t, ind):
         self.t = t
         self.ind = ind
+        self.updated = False
 
     def set_outputs(self, y):
         self.y = y.reshape((-1, 1))
+        self.updated = False
         self._update() # at this point we are ready to go since it's assumed
         # that the corresponding inputs and outputs are set.
 
@@ -47,10 +50,12 @@ class lfm2():
             self.sn[d] = np.exp(params[(2+self.Q)*self.D+self.Q+d])
             for q in range(self.Q):
                 self.S[d][q] = params[2*self.D+q+d*self.Q]
+        self.updated = False
         if update:
             self._update()
 
     def _update(self):
+        self.updated = True
         self.K = self.Kyy()
         self._L, jitter = jitChol(self.K)
         invU = np.linalg.solve(self._L,np.eye(self._L.shape[0]))
@@ -58,6 +63,7 @@ class lfm2():
         self.alpha = np.dot(Ki, self.y)
 
     def LLeval(self):
+        assert self.updated
         self.LL = -.5*(np.dot(self.y.T, self.alpha)[0][0]+self.y.size*self.l2pi + 2.*np.log(np.diag(self._L)).sum())
         return self.LL
 

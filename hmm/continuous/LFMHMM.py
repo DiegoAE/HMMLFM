@@ -3,6 +3,7 @@ __author__ = 'diego'
 from hmm._BaseHMM import _BaseHMM
 from hmm.lfm2kernel.lfm2 import lfm2
 from hmm.lfm2kernel import SecondOrderLFMKernel
+from scipy import optimize
 from scipy import stats
 import numpy as np
 
@@ -244,9 +245,10 @@ class LFMHMM(_BaseHMM):
     #     _BaseHMM.set_observations(self, observations)
 
     def _reestimateLFMparams(self, gammas):
-        # TODO: working on this
-        print "===", self.objective_for_hyperparameters(gammas)
-        # the emissios parameters are not being changed at all.
+        # TODO: working here
+        # new_LFMparams = self.optimize_hyperparams(gammas)
+        # print "*** ", self.unpack_params(new_LFMparams)
+        # the emissions parameters are not being changed at all.
         return self.LFMparams
 
     def objective_for_hyperparameters(self, gammas):
@@ -254,23 +256,44 @@ class LFMHMM(_BaseHMM):
         weighted_sum = 0.0
         n_sequences = len(gammas)
         for i in xrange(self.n):
+            print "HIDDEN STATE:", i
             current_lfm = self.lfms[i]
+            cov = self.get_cov_function(i, False)
+            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov)
             for s in xrange(n_sequences):
                 gamma = gammas[s]
                 n_observations = len(gamma)
                 for t in xrange(n_observations):
-                    current_lfm.set_outputs(self.observations[s][t])
-                    weighted_sum += gamma[t][i] * current_lfm.LLeval()
+                    # current_lfm.set_outputs(self.observations[s][t])
+                    # weighted_sum += gamma[t][i] * current_lfm.LLeval()
+                    # other way
+                    weighted_sum += gamma[t][i] * mvg.logpdf(self.observations[s][t])
         return weighted_sum
+
+    def _wrapped_objective(self, params, gammas):
+        print "parameters :", self.unpack_params(params)
+        self._update_emission_params(params)
+        return -self.objective_for_hyperparameters(gammas)
 
     def _reestimate(self, stats):
         new_model = _BaseHMM._reestimate(self, stats)
         new_model['LFMparams'] = self._reestimateLFMparams(stats['gammas'])
         return new_model
 
-    def _updatemodel(self, new_model):
-        self.LFMparams = new_model['LFMparams']
-        lfms_params = self.pack_params(self.LFMparams)
+    def optimize_hyperparams(self, gammas):
+        # initilization with the current LFMparams.
+        packed = self.pack_params(self.LFMparams)
+        result = optimize.minimize(self._wrapped_objective, packed, gammas)
+        print "==============="
+        print result.message
+        print "iterations:", result.nit
+        print "==============="
+        return result.x
+
+    def _update_emission_params(self, lfms_params):
+        # Notice that this function works with the packed params.
+        # Be careful because this function doesn't update self.LFMparams
+        # So it is expected to call  after using this.
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
         # updating each of the lfm's (i.e. hidden states) with the new params.
@@ -279,6 +302,11 @@ class LFMHMM(_BaseHMM):
             noise_param = lfms_params[-1:]
             self.lfms[i].set_params(
                     np.concatenate((no_noise_params, noise_param)), False)
+
+    def _updatemodel(self, new_model):
+        self.LFMparams = new_model['LFMparams']
+        packed_params = self.pack_params(self.LFMparams)
+        self._update_emission_params(packed_params)
         _BaseHMM._updatemodel(self, new_model)
 
     def _mapB(self):

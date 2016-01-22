@@ -246,20 +246,21 @@ class LFMHMM(_BaseHMM):
 
     def _reestimateLFMparams(self, gammas):
         # TODO: working here
-        # new_LFMparams = self.optimize_hyperparams(gammas)
-        # print "*** ", self.unpack_params(new_LFMparams)
+        new_LFMparams = self.optimize_hyperparams(gammas)
+        print "CURRENT VALUE OF EMISSION PARAMS: "
+        print self.unpack_params(new_LFMparams)
         # the emissions parameters are not being changed at all.
-        return self.LFMparams
+        return self.unpack_params(new_LFMparams)
 
     def objective_for_hyperparameters(self, gammas):
         # Seems to be working fine. Try to figure out a way to test this.
         weighted_sum = 0.0
         n_sequences = len(gammas)
         for i in xrange(self.n):
-            print "HIDDEN STATE:", i
+            # print "HIDDEN STATE:", i
             current_lfm = self.lfms[i]
             cov = self.get_cov_function(i, False)
-            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov)
+            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov, True)
             for s in xrange(n_sequences):
                 gamma = gammas[s]
                 n_observations = len(gamma)
@@ -271,7 +272,7 @@ class LFMHMM(_BaseHMM):
         return weighted_sum
 
     def _wrapped_objective(self, params, gammas):
-        print "parameters :", self.unpack_params(params)
+        # print "parameters :", self.unpack_params(params)
         self._update_emission_params(params)
         return -self.objective_for_hyperparameters(gammas)
 
@@ -283,7 +284,8 @@ class LFMHMM(_BaseHMM):
     def optimize_hyperparams(self, gammas):
         # initilization with the current LFMparams.
         packed = self.pack_params(self.LFMparams)
-        result = optimize.minimize(self._wrapped_objective, packed, gammas)
+        result = optimize.minimize(self._wrapped_objective, packed, gammas,
+                                   bounds=self._get_bounds())
         print "==============="
         print result.message
         print "iterations:", result.nit
@@ -302,6 +304,24 @@ class LFMHMM(_BaseHMM):
             noise_param = lfms_params[-1:]
             self.lfms[i].set_params(
                     np.concatenate((no_noise_params, noise_param)), False)
+
+    def _get_bounds(self):
+        tam_sensi = self.number_outputs * self.number_latent_f
+        upper = 10.0
+        bounds = []
+        for i in xrange(self.n):
+            f = [(None, upper)] * (2 * self.number_outputs)  # spring & damper.
+            s = [(None, None)] * tam_sensi  # sensitivities bound.
+            t = [(None, upper)] * self.number_latent_f  # length-scales bound.
+            bounds.extend(f)
+            bounds.extend(s)
+            bounds.extend(t)
+        bounds.append((None, upper))  # noise variance bound.
+        total_length = self.n * (2*self.number_outputs +
+                                 self.number_latent_f *
+                                 (1 + self.number_outputs)) + 1
+        assert len(bounds) == total_length
+        return bounds
 
     def _updatemodel(self, new_model):
         self.LFMparams = new_model['LFMparams']

@@ -87,7 +87,7 @@ for i in xrange(n_training_sequences):
 # plt.show()
 
 lfm_hmm.set_observations(obs)
-lfm_hmm.reset(emissions_reset=False)  # Reset to A and pi
+lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
@@ -104,7 +104,7 @@ print lfm_hmm.A
 
 recovered_paths = lfm_hmm._viterbi()
 
-# Testng GP-LFM fitting from the Viterbi estimation
+# Testing GP-LFM fitting from the Viterbi estimation
 
 one_observation = obs[0][0]
 one_hidden_state = recovered_paths[0][0]

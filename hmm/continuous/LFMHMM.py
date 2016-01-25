@@ -5,6 +5,7 @@ from hmm.lfm2kernel.lfm2 import lfm2
 from hmm.lfm2kernel import SecondOrderLFMKernel
 from scipy import optimize
 from scipy import stats
+import multiprocessing as mp
 import numpy as np
 
 
@@ -14,6 +15,24 @@ class LFMHMMError(Exception):
     def __str__(self):
         return repr(self.value)
 
+
+def _parallel_hyperparameter_objective(tup):
+    '''
+    Auxiliar function to make it easier to evaluate the objective function for
+    emission parameters optimization in a parallel way.
+    '''
+    idx, d = tup
+    gamma = d['gammas'][idx]
+    mvgs = d['mvgs']
+    observation = d['obs'][idx]
+    n = len(mvgs)
+    n_observations = len(gamma)
+    weighted_sum = 0.0
+    for i in xrange(n):
+        mvg = mvgs[i]
+        for t in xrange(n_observations):
+            weighted_sum += gamma[t][i] * mvg.logpdf(observation[t])
+    return weighted_sum
 
 class LFMHMM(_BaseHMM):
 
@@ -49,6 +68,9 @@ class LFMHMM(_BaseHMM):
         self.lengthscales = lengthscales
         self.noise_var = noise_var
         # ======
+        # Pool of workers to perform parallel computations when need it.
+        self.pool = mp.Pool()
+        #
         pdict = {}
         pdict['spring'] = spring
         pdict['damper'] = damper
@@ -245,15 +267,15 @@ class LFMHMM(_BaseHMM):
     #     _BaseHMM.set_observations(self, observations)
 
     def _reestimateLFMparams(self, gammas):
-        # TODO: working here
         new_LFMparams = self.optimize_hyperparams(gammas)
         print "CURRENT VALUE OF EMISSION PARAMS: "
         print self.unpack_params(new_LFMparams)
-        # the emissions parameters are not being changed at all.
         return self.unpack_params(new_LFMparams)
 
-    def objective_for_hyperparameters(self, gammas):
-        # Seems to be working fine. Try to figure out a way to test this.
+    def objective_for_hyperparameters(self, gammas, parallelized=True):
+        if parallelized:
+            return self.parallel_hyperparameters(gammas)
+        # non-parallel code
         weighted_sum = 0.0
         n_sequences = len(gammas)
         for i in xrange(self.n):
@@ -270,6 +292,23 @@ class LFMHMM(_BaseHMM):
                     # other way
                     weighted_sum += gamma[t][i] * mvg.logpdf(self.observations[s][t])
         return weighted_sum
+
+    def parallel_hyperparameters(self, gammas):
+        n_sequences = len(gammas)
+        mvgs = []
+        for i in xrange(self.n):
+            cov = self.get_cov_function(i, False)
+            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov, True)
+            mvgs.append(mvg)
+        d = {
+            'mvgs': mvgs,
+            'obs': self.observations,
+            'gammas': gammas,
+        }
+        l = zip(range(n_sequences), [d] * n_sequences)
+        ret = self.pool.map(_parallel_hyperparameter_objective, l)
+        return np.sum(ret)
+
 
     def _wrapped_objective(self, params, gammas):
         # print "parameters :", self.unpack_params(params)
@@ -358,11 +397,4 @@ class LFMHMM(_BaseHMM):
                         self.observations[j][t], np.zeros(cov.shape[0]),
                         cov, False)  # Allowing singularity in cov sometimes.
                                      # This is weird.
-
-
-
-
-
-
-
 

@@ -174,6 +174,7 @@ class LFMHMM(_BaseHMM):
                 LFMparams['noise_var'] = 1e2
                 new_params['LFMparams'] = LFMparams
             self._updatemodel(new_params)
+            self._mapB()
         else:
             raise LFMHMMError("reset init_type not supported.")
 
@@ -334,7 +335,7 @@ class LFMHMM(_BaseHMM):
     def _update_emission_params(self, lfms_params):
         # Notice that this function works with the packed params.
         # Be careful because this function doesn't update self.LFMparams
-        # So it is expected to call  after using this.
+        # So it is expected to update it  after/before using this.
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
         # updating each of the lfm's (i.e. hidden states) with the new params.
@@ -363,6 +364,11 @@ class LFMHMM(_BaseHMM):
         return bounds
 
     def _updatemodel(self, new_model):
+        '''
+        This function updates the values of model attributes. Namely
+        self.LFMparams, self.A, self.pi and self.lfms.
+        Note that this doesn't update the probabilities B_maps
+        '''
         self.LFMparams = new_model['LFMparams']
         packed_params = self.pack_params(self.LFMparams)
         self._update_emission_params(packed_params)

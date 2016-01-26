@@ -1,5 +1,3 @@
-
-from matplotlib import pyplot as plt
 import numpy as np
 from scipy.special import wofz
 
@@ -167,6 +165,7 @@ def K_pred(B, C, lq, t, t_pred):
 
 
 if __name__ == "__main__":
+    from matplotlib import pyplot as plt
     Bd= 1. #spring
     Bdp= 3.
     Cd = 3.

@@ -127,7 +127,6 @@ class _BaseHMM(object):
 
         output = numpy.zeros(self.B_maps.shape[0], dtype=object)
         for s in xrange(self.B_maps.shape[0]):
-            #TODO: work with the log probability instead.
             assert len(self.B_maps[s]) > 0
             n_observations = len(self.B_maps[s][0])
             delta = numpy.zeros((n_observations, self.n), dtype=self.precision)
@@ -150,14 +149,14 @@ class _BaseHMM(object):
 
             # termination: find the maximum probability for
             # the entire sequence (=highest prob path)
-            p_max = 0 # max value in time T (max)
+            p_max = 0  # max value in time T (max)
             # the states are discrete.
             path = numpy.zeros(n_observations, dtype=numpy.int)
             for i in xrange(self.n):
                 if p_max < delta[n_observations-1][i]:
                     p_max = delta[n_observations-1][i]
                     path[n_observations-1] = i
-
+            assert p_max > 0
             # path backtracing
             for i in xrange(1, n_observations):
                 path[n_observations-i-1] = \

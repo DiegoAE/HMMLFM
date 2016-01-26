@@ -1,5 +1,4 @@
 
-import pylab as pb
 from matplotlib import pyplot as plt
 import numpy as np
 from scipy.special import wofz

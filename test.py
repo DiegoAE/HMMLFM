@@ -2,7 +2,6 @@ __author__ = 'diego'
 
 from hmm.continuous.LFMHMM import LFMHMM
 from matplotlib import pyplot as plt
-from scipy import stats
 import numpy as np
 
 np.random.seed(200)

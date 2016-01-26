@@ -1,5 +1,3 @@
-import pylab as pb
-from matplotlib import pyplot as plt
 from ndlutil import jitChol
 import numpy as np
 from scipy import optimize, integrate
@@ -232,7 +230,7 @@ class lfm2():
 
 
 if __name__ == "__main__":
-
+    from matplotlib import pyplot as plt
     #Simulation
 
     #System's parameters

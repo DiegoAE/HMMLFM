@@ -3,8 +3,11 @@ __author__ = 'diego'
 from hmm.continuous.LFMHMM import LFMHMM
 from matplotlib import pyplot as plt
 import numpy as np
+import sys
 
-np.random.seed(200)
+seed = np.random.random_integers(10000)
+np.random.seed(seed)
+print "USED SEED", seed
 
 pi = np.array([0.3, 0.3, 0.4])
 print "initial state distribution", pi
@@ -90,7 +93,7 @@ lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
-# print lfm_hmm.LFMparams
+print lfm_hmm.LFMparams
 
 print "start training"
 

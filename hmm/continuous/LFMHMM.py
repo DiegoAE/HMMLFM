@@ -235,6 +235,8 @@ class LFMHMM(_BaseHMM):
     def get_cov_function_explicit(self, hidden_state, t, tp):
         # TODO: This function doesn't take into account the existence of
         # lfm2.py. So it can be refactored.
+        # TODO: SUPERIMPORTANT using the attributes self.spring, self.damper,
+        # etc. is a bug since they are not updated. Fix throughout.
         B = np.asarray(self.spring_cons[hidden_state])
         C = np.asarray(self.damper_cons[hidden_state])
         l = self.lengthscales[hidden_state][0]
@@ -254,6 +256,7 @@ class LFMHMM(_BaseHMM):
         if hidden_state < 0 or hidden_state >= self.n:
             raise LFMHMMError("ERROR: Invalid hidden state.")
         obs = obs.reshape((-1, 1))
+        # TODO: figure out if it is OK to use caching here. I guess it is.
         Ktt = self.get_cov_function(hidden_state)
         ktstar = self.get_cov_function_explicit(
             hidden_state, self.sample_locations, np.asarray(t_step))

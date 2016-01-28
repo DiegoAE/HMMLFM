@@ -6,6 +6,7 @@ import numpy as np
 import sys
 
 seed = np.random.random_integers(10000)
+seed = 1928
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -54,17 +55,17 @@ print "Accepted!"
 
 # Plotting
 
-# segments = 10
-# obs_1, _ = lfm_hmm.generate_observations(segments)
-# last_value = 0
-# for i in xrange(segments):
-#     plt.axvline(x=last_value, color='red', linestyle='--')
-#     sl = lfm_hmm.sample_locations
-#     plt.plot(last_value + sl - sl[0], obs_1[i])
-#     print last_value
-#     print last_value + sl - sl[0]
-#     last_value += end_t - start_t
-# plt.show()
+segments = 10
+obs_1, _ = lfm_hmm.generate_observations(segments)
+last_value = 0
+for i in xrange(segments):
+    plt.axvline(x=last_value, color='red', linestyle='--')
+    sl = lfm_hmm.sample_locations
+    plt.plot(last_value + sl - sl[0], obs_1[i])
+    # print last_value
+    # print last_value + sl - sl[0]
+    last_value += end_t - start_t
+plt.show()
 
 
 obs = []
@@ -89,7 +90,7 @@ for i in xrange(n_training_sequences):
 # plt.show()
 
 lfm_hmm.set_observations(obs)
-lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
+# lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
@@ -97,12 +98,36 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-lfm_hmm.train()
+# lfm_hmm.train()
 
 print "after training"
 print lfm_hmm.pi
 print lfm_hmm.A
-# print lfm_hmm.LFMparams
+print lfm_hmm.LFMparams
+
+save_params_to_file = False
+if save_params_to_file:
+    number = 0
+    file('/tmp/LFMparams.%d.param' % number, 'w').write(repr(lfm_hmm.LFMparams))
+    file('/tmp/A.%d.param' % number, 'w').write(repr(lfm_hmm.A))
+    file('/tmp/pi.%d.param' % number, 'w').write(repr(lfm_hmm.pi))
+
+read_params_from_file = True
+if read_params_from_file:
+    number = 1
+    LFMparams_string = file('/tmp/LFMparams.%d.param' % number, 'r').read()
+    A_string = file('/tmp/A.%d.param' % (number - 1), 'r').read()
+    pi_string = file('/tmp/pi.%d.param' % (number - 1), 'r').read()
+    from numpy import array  # require for eval to work.
+    model_to_set = {
+        'LFMparams': eval(LFMparams_string),
+        'A': eval(A_string),
+        'pi': eval(pi_string),
+    }
+    lfm_hmm._updatemodel(model_to_set)
+    lfm_hmm._mapB()
+
+print lfm_hmm.LFMparams
 
 recovered_paths = lfm_hmm._viterbi()
 
@@ -187,10 +212,13 @@ hidden_states_ground_truth = np.array(hidden_states_reference[0])
 lfm_hmm.set_observations(regression_observation)
 regression_hidden_states = lfm_hmm._viterbi()[0]
 
+
+# This measure doesn't take into account that the hidden states can be permuted
+# and the parameters might be potentially unidentifiable.
 print "The number of wrong predicted motor primitives is %d" % \
       np.count_nonzero(regression_hidden_states - hidden_states_ground_truth)
 
-considered_segments = min(len(regression_hidden_states), 5)  # a few segments
+considered_segments = min(len(regression_hidden_states), 20)  # a few segments
 number_testing_points = 100
 
 last_value = 0
@@ -213,6 +241,10 @@ for i in xrange(considered_segments):
     last_value = last_value + end_t - start_t
     plt.axvline(x=last_value, color='red', linestyle='--')
 
+print "*****"
+print "HS Ground truth", hidden_states_ground_truth[:considered_segments]
+print "HS own model   ", regression_hidden_states[:considered_segments]
+print "*****"
 
 plt.title("Fitting of the model given an observation sequence.")
 plt.legend(loc='upper left')

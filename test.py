@@ -3,7 +3,6 @@ __author__ = 'diego'
 from hmm.continuous.LFMHMM import LFMHMM
 from matplotlib import pyplot as plt
 import numpy as np
-import sys
 
 seed = np.random.random_integers(10000)
 seed = 1928
@@ -90,7 +89,7 @@ for i in xrange(n_training_sequences):
 # plt.show()
 
 lfm_hmm.set_observations(obs)
-# lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
+lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
 
 print lfm_hmm.pi
 print lfm_hmm.A
@@ -98,7 +97,7 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-# lfm_hmm.train()
+lfm_hmm.train()
 
 print "after training"
 print lfm_hmm.pi
@@ -112,7 +111,7 @@ if save_params_to_file:
     file('/tmp/A.%d.param' % number, 'w').write(repr(lfm_hmm.A))
     file('/tmp/pi.%d.param' % number, 'w').write(repr(lfm_hmm.pi))
 
-read_params_from_file = True
+read_params_from_file = False
 if read_params_from_file:
     number = 1
     LFMparams_string = file('/tmp/LFMparams.%d.param' % number, 'r').read()

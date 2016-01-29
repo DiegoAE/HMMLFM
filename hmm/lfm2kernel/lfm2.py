@@ -30,6 +30,24 @@ class lfm2():
         self.ind = ind
         self.updated = False
 
+    def set_inputs_with_same_ind(self, t):
+        nt, ind = self.get_stacked_time_and_indexes(t)
+        self.set_inputs(nt, ind)
+
+    def get_stacked_time_and_indexes(self, t):
+        """
+        This function assumes the same input locations for ALL the outputs. So
+        it returns the sample locations vector (t) stacked noutputs times and
+        the corresponding array of indexes for each output.
+        """
+        idx = np.zeros(shape=(0, 1), dtype=np.int8)
+        time_length = len(t)
+        stacked_time = np.zeros(shape=(0, 1))
+        for d in xrange(self.D):
+            idx = np.vstack((idx, d * np.ones((time_length, 1), dtype=np.int8)))
+            stacked_time = np.vstack((stacked_time, t.reshape(-1, 1)))
+        return stacked_time, idx
+
     def set_outputs(self, y):
         self.y = y.reshape((-1, 1))
         self.updated = False
@@ -68,18 +86,19 @@ class lfm2():
     def Kyy(self):
         K = self.Kff(self.t, self.ind)
         n = range(K.shape[0])
-        K[n,n] += self.sn[self.ind].reshape((self.ind.size,)) #Adding noise
+        K[n, n] += self.sn[self.ind].reshape((self.ind.size,))  # Adding noise
         return K
 
-    def Kff(self,t,index,tp=None,indexp=None):
+    def Kff(self, t, index, tp=None, indexp=None):
         other = t
         if tp is not None:
+            assert indexp is not None
             other = tp
-        K = np.zeros((t.size,other.size))
+        K = np.zeros((t.size, other.size))
         for q in range(self.Q):
-            K += (self.S[index,q]*self.S[index,q].T)*self.Kff_q(self.l[q],t,index,tp,indexp)
+            K += (self.S[index, q]*self.S[indexp, q].T) *\
+                 self.Kff_q(self.l[q], t, index, tp, indexp)
         return K
-
 
     def Kff_q(self,lq,t,index,tp=None,indexp=None):
         if tp is None:

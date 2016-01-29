@@ -2,7 +2,6 @@ __author__ = 'diego'
 
 from hmm._BaseHMM import _BaseHMM
 from hmm.lfm2kernel.lfm2 import lfm2
-from hmm.lfm2kernel import SecondOrderLFMKernel
 from scipy import optimize
 from scipy import stats
 import multiprocessing as mp
@@ -59,14 +58,7 @@ class LFMHMM(_BaseHMM):
         # and the same thing with the sensitivities. For now all them are 1.
         self.number_latent_f = 1
         # implicit assumption of sensitivities being equal to one.
-        self.sensi = np.ones((n, number_outputs, self.number_latent_f))
-        # ======
-        # Once the the get_cov_* and predict functions are refactored I can
-        # get rid of this.
-        self.spring_cons = spring
-        self.damper_cons = damper
-        self.lengthscales = lengthscales
-        self.noise_var = noise_var
+        sensi = np.ones((n, number_outputs, self.number_latent_f))
         # ======
         # Pool of workers to perform parallel computations when need it.
         self.pool = mp.Pool()
@@ -74,26 +66,17 @@ class LFMHMM(_BaseHMM):
         pdict = {}
         pdict['spring'] = spring
         pdict['damper'] = damper
-        pdict['sensi'] = self.sensi
+        pdict['sensi'] = sensi
         pdict['noise_var'] = noise_var
         pdict['lengthscales'] = lengthscales
         self.LFMparams = pdict
         # covariance memoization
         self.memo_covs = {}
+        # Latent Force Model objects
         self.lfms = np.zeros(n, dtype='object')
-        # ======
-        # TODO: I think this part of the code should be in lfm2.py
-        idx = np.zeros(shape=(0, 1), dtype=np.int8)
-        time_length = len(self.sample_locations)
-        stacked_time = np.zeros(shape=(0, 1))
-        for d in xrange(number_outputs):
-            idx = np.vstack((idx, d * np.ones((time_length, 1), dtype=np.int8)))
-            stacked_time = np.vstack((stacked_time,
-                                      self.sample_locations.reshape(-1,1)))
-        # ======
         for i in xrange(n):
             self.lfms[i] = lfm2(1, number_outputs)
-            self.lfms[i].set_inputs(stacked_time, idx)
+            self.lfms[i].set_inputs_with_same_ind(self.sample_locations)
         # Setting the transition matrix, the initial stater PMF and the emission
         # params.
         params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
@@ -233,30 +216,22 @@ class LFMHMM(_BaseHMM):
         return cov
 
     def get_cov_function_explicit(self, hidden_state, t, tp):
-        # TODO: This function doesn't take into account the existence of
-        # lfm2.py. So it can be refactored.
-        # TODO: SUPERIMPORTANT using the attributes self.spring, self.damper,
-        # etc. is a bug since they are not updated. Fix throughout.
-        B = np.asarray(self.spring_cons[hidden_state])
-        C = np.asarray(self.damper_cons[hidden_state])
-        l = self.lengthscales[hidden_state][0]
         # Notice that the noise variance doesn't appear here.
         # The noise variance only affects Ktt.
-        cov = SecondOrderLFMKernel.K_pred(B, C, l, t.reshape((-1, 1)),
-                                          tp.reshape((-1, 1)))
+        assert hidden_state < self.n
+        nt, ind = self.lfms[hidden_state].get_stacked_time_and_indexes(t)
+        ntp, indp = self.lfms[hidden_state].get_stacked_time_and_indexes(tp)
+        cov = self.lfms[hidden_state].Kff(nt, ind, ntp, indp)
         return cov
 
     def predict(self, t_step, hidden_state, obs):
-        # TODO: there is a bad smell here. obs vs set observations.
-        # This function doesn't take into account the existence of lfm2.py. So
-        # it can be refactored.
+        # TODO: In lfm2.py there is a predict function that you can try to plug in
         if self.verbose and \
                 (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
             print "WARNING:prediction step.Time step out of the sampling region"
         if hidden_state < 0 or hidden_state >= self.n:
             raise LFMHMMError("ERROR: Invalid hidden state.")
         obs = obs.reshape((-1, 1))
-        # TODO: figure out if it is OK to use caching here. I guess it is.
         Ktt = self.get_cov_function(hidden_state)
         ktstar = self.get_cov_function_explicit(
             hidden_state, self.sample_locations, np.asarray(t_step))
@@ -265,10 +240,6 @@ class LFMHMM(_BaseHMM):
         mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
         cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
         return mean_pred, cov_pred
-
-    # def set_observations(self, observations):
-    #     # TODO: not sure if I have to set outputs here for lfms.
-    #     _BaseHMM.set_observations(self, observations)
 
     def _reestimateLFMparams(self, gammas):
         new_LFMparams = self.optimize_hyperparams(gammas)
@@ -381,7 +352,8 @@ class LFMHMM(_BaseHMM):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
-        # Erasing the covariance cache
+        # Erasing the covariance cache here. Should I do the same in other
+        # places ?
         self.memo_covs = {}
         if not self.observations:
             raise LFMHMMError("The training sequences haven't been set.")

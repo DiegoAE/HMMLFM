@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 seed = np.random.random_integers(10000)
-seed = 1928
+# seed = 1928
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -97,7 +97,7 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-lfm_hmm.train()
+# lfm_hmm.train()
 
 print "after training"
 print lfm_hmm.pi
@@ -111,12 +111,12 @@ if save_params_to_file:
     file('/tmp/A.%d.param' % number, 'w').write(repr(lfm_hmm.A))
     file('/tmp/pi.%d.param' % number, 'w').write(repr(lfm_hmm.pi))
 
-read_params_from_file = False
+read_params_from_file = True
 if read_params_from_file:
     number = 1
     LFMparams_string = file('/tmp/LFMparams.%d.param' % number, 'r').read()
-    A_string = file('/tmp/A.%d.param' % (number - 1), 'r').read()
-    pi_string = file('/tmp/pi.%d.param' % (number - 1), 'r').read()
+    A_string = file('/tmp/A.%d.param' % number, 'r').read()
+    pi_string = file('/tmp/pi.%d.param' % number, 'r').read()
     from numpy import array  # require for eval to work.
     model_to_set = {
         'LFMparams': eval(LFMparams_string),
@@ -220,13 +220,34 @@ print "The number of wrong predicted motor primitives is %d" % \
 considered_segments = min(len(regression_hidden_states), 20)  # a few segments
 number_testing_points = 100
 
+
+# Plotting the priors
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+for i in xrange(considered_segments):
+    c_hidden_state = regression_hidden_states[i]
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, number_testing_points)
+    mean_prior = np.zeros(number_testing_points)
+    cov_prior = lfm_hmm.get_cov_function_explicit(c_hidden_state,t_test,t_test)
+    plt.plot(last_value + t_test - t_test[0], mean_prior, color='green')
+    diag_cov = np.diag(cov_prior)
+    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+    last_value = last_value + end_t - start_t
+    plt.axvline(x=last_value, color='red', linestyle='--')
+
+plt.title("Plotting priors.")
+plt.show()
+
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 means = np.zeros((considered_segments, number_testing_points))
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = regression_observation[0][i]
-    t_test = np.linspace(start_t, end_t, number_testing_points)  # predicting more time steps
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, number_testing_points)
     mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
     means[i, :] = mean_pred.flatten()
     sl = lfm_hmm.sample_locations

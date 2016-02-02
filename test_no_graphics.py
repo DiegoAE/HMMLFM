@@ -2,6 +2,7 @@ __author__ = 'diego'
 
 from hmm.continuous.LFMHMM import LFMHMM
 import numpy as np
+from matplotlib import pyplot as plt
 
 #np.random.seed(200)
 
@@ -40,31 +41,14 @@ lfm_hmm = LFMHMM(
     verbose=True,
 )
 
-
-obs = []
-n_training_sequences = 30
-hidden_states = np.zeros(n_training_sequences, dtype=object)
-for i in xrange(n_training_sequences):
-    segments = np.random.randint(1, 100)
-    print "The %d-th sequence has length %d" % (i, segments)
-    output, hidden = lfm_hmm.generate_observations(segments)
-    obs.append(output)
-    hidden_states[i] = hidden
-
-
-lfm_hmm.set_observations(obs)
-lfm_hmm.reset(emissions_reset=True)  # Reset to A and pi
-
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
-
-print "start training"
-
-lfm_hmm.train()
-
-print "after training"
-
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+segments = 10
+obs_1, _ = lfm_hmm.generate_continuous_observations(segments)
+last_value = 0
+for i in xrange(segments):
+    plt.axvline(x=last_value, color='red', linestyle='--')
+    sl = lfm_hmm.sample_locations
+    plt.plot(last_value + sl - sl[0], obs_1[i])
+    # print last_value
+    # print last_value + sl - sl[0]
+    last_value += end_t - start_t
+plt.show()

@@ -54,17 +54,17 @@ print "Accepted!"
 
 # Plotting
 
-segments = 10
-obs_1, _ = lfm_hmm.generate_observations(segments)
-last_value = 0
-for i in xrange(segments):
-    plt.axvline(x=last_value, color='red', linestyle='--')
-    sl = lfm_hmm.sample_locations
-    plt.plot(last_value + sl - sl[0], obs_1[i])
-    # print last_value
-    # print last_value + sl - sl[0]
-    last_value += end_t - start_t
-plt.show()
+# segments = 10
+# obs_1, _ = lfm_hmm.generate_observations(segments)
+# last_value = 0
+# for i in xrange(segments):
+#     plt.axvline(x=last_value, color='red', linestyle='--')
+#     sl = lfm_hmm.sample_locations
+#     plt.plot(last_value + sl - sl[0], obs_1[i])
+#     # print last_value
+#     # print last_value + sl - sl[0]
+#     last_value += end_t - start_t
+# plt.show()
 
 
 obs = []
@@ -222,23 +222,23 @@ number_testing_points = 100
 
 
 # Plotting the priors
-last_value = 0
-plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
-    c_hidden_state = regression_hidden_states[i]
-    # predicting more time steps
-    t_test = np.linspace(start_t, end_t, number_testing_points)
-    mean_prior = np.zeros(number_testing_points)
-    cov_prior = lfm_hmm.get_cov_function_explicit(c_hidden_state,t_test,t_test)
-    plt.plot(last_value + t_test - t_test[0], mean_prior, color='green')
-    diag_cov = np.diag(cov_prior)
-    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() - 2 * np.sqrt(diag_cov), 'k--')
-    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() + 2 * np.sqrt(diag_cov), 'k--')
-    last_value = last_value + end_t - start_t
-    plt.axvline(x=last_value, color='red', linestyle='--')
-
-plt.title("Plotting priors.")
-plt.show()
+# last_value = 0
+# plt.axvline(x=last_value, color='red', linestyle='--')
+# for i in xrange(considered_segments):
+#     c_hidden_state = regression_hidden_states[i]
+#     # predicting more time steps
+#     t_test = np.linspace(start_t, end_t, locations_per_segment)
+#     mean_prior = np.zeros(len(t_test))
+#     cov_prior = lfm_hmm.lfms[c_hidden_state].Kyy()
+#     plt.plot(last_value + t_test - t_test[0], mean_prior, color='green')
+#     diag_cov = np.diag(cov_prior)
+#     plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+#     plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+#     last_value = last_value + end_t - start_t
+#     plt.axvline(x=last_value, color='red', linestyle='--')
+#
+# plt.title("Plotting priors.")
+# plt.show()
 
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')

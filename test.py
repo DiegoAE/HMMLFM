@@ -1,6 +1,7 @@
 __author__ = 'diego'
 
 from hmm.continuous.LFMHMM import LFMHMM
+from hmm.continuous.LFMHMMcontinuous import LFMHMMcontinuous
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -29,7 +30,7 @@ lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
 noise_var = 0.0005  # Viterbi starts failing when this noise is set.
 
-lfm_hmm = LFMHMM(
+lfm_hmm = LFMHMMcontinuous(
     number_lfm,
     A,
     pi,
@@ -167,7 +168,7 @@ plt.show()
 # now the lfm_hmm has the estimated pi and A
 # it's necessary to create a new instance of LFMHMM
 
-lfm_hmm_reference = LFMHMM(
+lfm_hmm_reference = LFMHMMcontinuous(
     number_lfm,
     A,
     pi,
@@ -253,7 +254,7 @@ for i in xrange(considered_segments):
     sl = lfm_hmm.sample_locations
     plt.scatter(last_value + sl - sl[0], c_obv, facecolors='none',
                 label=[None, 'observations'][i == 0])
-    plt.plot(last_value + t_test - t_test[0], mean_pred, color = 'green',
+    plt.plot(last_value + t_test - t_test[0], mean_pred, color='green',
              label=[None, 'predicted mean'][i == 0])
     diag_cov = np.diag(cov_pred)
     plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
@@ -276,7 +277,7 @@ plt.show()
 
 number_testing_points = 191
 
-lfm_validation = LFMHMM(
+lfm_validation = LFMHMMcontinuous(
     number_lfm,
     A,
     pi,

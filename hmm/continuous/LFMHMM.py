@@ -180,35 +180,6 @@ class LFMHMM(_BaseHMM):
         print "Hidden States", hidden_states
         return output, hidden_states
 
-    def generate_continuous_observations(self, segments):
-        output = np.zeros((segments, self.locations_per_segment),
-                          dtype=self.precision)
-        initial_state = np.nonzero(np.random.multinomial(1, self.pi))[0][0]
-        hidden_states = [initial_state]
-        for x in xrange(1, segments):
-            hidden_states.append(np.nonzero(np.random.multinomial(
-                1, self.A[hidden_states[-1]]))[0][0])
-        last_observation_value = 0.0
-        for i in xrange(len(hidden_states)):
-            state = hidden_states[i]
-            cov = self.get_cov_function(state)
-            # Conditioning the first value to be equal to the last observation
-            # value.
-            A = cov[0, 0].item()
-            C = cov[0, 1:].reshape((1, -1))
-            B = cov[1:, 1:]
-            # mean_cond = C * (last_observation_value/A)
-            mean_cond = np.zeros(C.size)  # The last observed value is 0.
-            cov_cond = B - (1./A) * np.dot(C.T, C)
-            realization = np.random.multivariate_normal(
-                mean=mean_cond.flatten(), cov=cov_cond)
-            output[i, 0] = 0
-            output[i, 1:] = realization
-            output[i] += last_observation_value
-            last_observation_value = output[i][-1]
-        print "Hidden States", hidden_states
-        return output, hidden_states
-
     def get_cov_function(self, hidden_state, cache=True):
         if cache and (hidden_state in self.memo_covs):
             return self.memo_covs[hidden_state]

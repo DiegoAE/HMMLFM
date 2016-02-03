@@ -156,7 +156,8 @@ class _BaseHMM(object):
                 if p_max < delta[n_observations-1][i]:
                     p_max = delta[n_observations-1][i]
                     path[n_observations-1] = i
-            assert p_max > 0
+            assert p_max > 0, "There is not a sequence of hidden states with " \
+                              "(numerically) nonzero probability."
             # path backtracing
             for i in xrange(1, n_observations):
                 path[n_observations-i-1] = \

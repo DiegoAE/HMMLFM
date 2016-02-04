@@ -157,7 +157,8 @@ class LFMHMM(_BaseHMM):
                 LFMparams['noise_var'] = 1e2
                 new_params['LFMparams'] = LFMparams
             self._updatemodel(new_params)
-            self._mapB()
+            if self.observations is not None:
+                self._mapB()
         else:
             raise LFMHMMError("reset init_type not supported.")
 

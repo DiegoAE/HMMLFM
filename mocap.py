@@ -4,19 +4,22 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 seed = np.random.random_integers(10000)
-# seed = 1928
+seed = 4748
 np.random.seed(seed)
 print "USED SEED", seed
 
 print "Using GPy version: ", GPy.__version__
 
-data = GPy.util.datasets.cmu_mocap('35', ['17'], sample_every=1)
+data = GPy.util.datasets.cmu_mocap('5', ['13'], sample_every=1)
 print data['info']
 Y = data['Y']
 nsamples, nfeatures = Y.shape
 print "Y's shape ", Y.shape
 
-plt.plot(np.arange(nsamples), Y[:, 0])
+
+channel_id = 20
+
+plt.plot(np.arange(nsamples), Y[:, channel_id])
 plt.show()
 
 # print Y[0, :]
@@ -29,7 +32,7 @@ plt.show()
 
 
 ### LFM HMM
-number_lfm = 5
+number_lfm = 3
 outputs = 1
 start_t = 0.1
 end_t = 5.1
@@ -65,9 +68,9 @@ lfm_hmm.reset()
 number_training_sequences = 1
 obs = []
 for s in xrange(number_training_sequences):
-    number_segments = 5  # fixed for now.
+    number_segments = 30  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment))
-    signal = Y[:, 0]
+    signal = Y[:, channel_id]
     idx = 0
     for i in xrange(number_segments):
         c_obs[i, :] = signal[idx:idx + locations_per_segment]
@@ -75,7 +78,18 @@ for s in xrange(number_training_sequences):
     obs.append(c_obs)
 
 lfm_hmm.set_observations(obs)
-# lfm_hmm.train()
+
+print "before training"
+print lfm_hmm.pi
+print lfm_hmm.A
+print lfm_hmm.LFMparams
+
+train_flag = False
+if train_flag:
+    lfm_hmm.train()
+    lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaMOCAP")
+else:
+    lfm_hmm.read_params("/home/diego/tmp/Parameters", "pruebaMOCAP")
 
 print "after training"
 print lfm_hmm.pi
@@ -83,37 +97,12 @@ print lfm_hmm.A
 print lfm_hmm.LFMparams
 
 
-# TODO: Move the funcionality related with saving/reading parameters inside
-# the class LFMHMM.
-save_params_to_file = False
-if save_params_to_file:
-    number = 3
-    file('/tmp/LFMparams.%d.param' % number, 'w').write(repr(lfm_hmm.LFMparams))
-    file('/tmp/A.%d.param' % number, 'w').write(repr(lfm_hmm.A))
-    file('/tmp/pi.%d.param' % number, 'w').write(repr(lfm_hmm.pi))
-
-
-read_params_from_file = True
-if read_params_from_file:
-    number = 3
-    LFMparams_string = file('/tmp/LFMparams.%d.param' % number, 'r').read()
-    A_string = file('/tmp/A.%d.param' % number, 'r').read()
-    pi_string = file('/tmp/pi.%d.param' % number, 'r').read()
-    from numpy import array  # require for eval to work.
-    model_to_set = {
-        'LFMparams': eval(LFMparams_string),
-        'A': eval(A_string),
-        'pi': eval(pi_string),
-    }
-    lfm_hmm._updatemodel(model_to_set)
-    lfm_hmm._mapB()
-
 # Second experiment: Regression
 number_testing_points = 100
 regression_hidden_states = lfm_hmm._viterbi()[0]
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = 5
+considered_segments = 30
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = obs[0][i]
@@ -130,6 +119,9 @@ for i in xrange(considered_segments):
     plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
     last_value = last_value + end_t - start_t
     plt.axvline(x=last_value, color='red', linestyle='--')
+
+
+print "Inferred hidden states ", regression_hidden_states
 
 plt.title("Fitting of the model given an observation sequence.")
 plt.legend(loc='upper left')

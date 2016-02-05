@@ -98,36 +98,19 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-# lfm_hmm.train()
+train_flag = False
+if train_flag:
+    lfm_hmm.train()
+    lfm_hmm.save_params("/home/diego/tmp/Parameters", "prueba")
+else:
+    lfm_hmm.read_params("/home/diego/tmp/Parameters", "prueba")
+
 
 print "after training"
 print lfm_hmm.pi
 print lfm_hmm.A
 print lfm_hmm.LFMparams
 
-save_params_to_file = False
-if save_params_to_file:
-    number = 0
-    file('/tmp/LFMparams.%d.param' % number, 'w').write(repr(lfm_hmm.LFMparams))
-    file('/tmp/A.%d.param' % number, 'w').write(repr(lfm_hmm.A))
-    file('/tmp/pi.%d.param' % number, 'w').write(repr(lfm_hmm.pi))
-
-read_params_from_file = True
-if read_params_from_file:
-    number = 1
-    LFMparams_string = file('/tmp/LFMparams.%d.param' % number, 'r').read()
-    A_string = file('/tmp/A.%d.param' % number, 'r').read()
-    pi_string = file('/tmp/pi.%d.param' % number, 'r').read()
-    from numpy import array  # require for eval to work.
-    model_to_set = {
-        'LFMparams': eval(LFMparams_string),
-        'A': eval(A_string),
-        'pi': eval(pi_string),
-    }
-    lfm_hmm._updatemodel(model_to_set)
-    lfm_hmm._mapB()
-
-print lfm_hmm.LFMparams
 
 recovered_paths = lfm_hmm._viterbi()
 

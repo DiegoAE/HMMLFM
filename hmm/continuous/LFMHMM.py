@@ -353,3 +353,46 @@ class LFMHMM(_BaseHMM):
                         cov, False)  # Allowing singularity in cov sometimes.
                                      # This is weird.
 
+    def save_params(self, dir, name):
+        f = file('%s/%s.param' % (dir, name), 'w')
+        f.write(repr(self.LFMparams) + "\n")
+        f.write("#\n")
+        f.write(repr(self.A) + "\n")
+        f.write("#\n")
+        f.write(repr(self.pi) + "\n")
+        f.close()
+
+    def read_params(self, dir, name):
+        f = file('%s/%s.param' % (dir, name), 'r')
+        LFMparams_string = ""
+        A_string = ""
+        pi_string = ""
+        read_line = f.readline()
+        while not read_line.startswith("#"):
+            LFMparams_string += read_line
+            read_line = f.readline()
+        read_line = f.readline()
+        while not read_line.startswith("#"):
+            A_string += read_line
+            read_line = f.readline()
+        read_line = f.readline()
+        while read_line:
+            pi_string += read_line
+            read_line = f.readline()
+        f.close()
+        from numpy import array  # required for eval to work.
+        model_to_set = {
+            'LFMparams': eval(LFMparams_string),
+            'A': eval(A_string),
+            'pi': eval(pi_string),
+        }
+        assert model_to_set['A'].shape == (self.n, self.n)
+        assert np.size(model_to_set['pi']) == self.n
+        assert model_to_set['LFMparams']['spring'].shape ==\
+               model_to_set['LFMparams']['damper'].shape ==\
+               (self.n, self.number_outputs)
+        assert model_to_set['LFMparams']['lengthscales'].shape ==\
+               (self.n, self.number_latent_f)
+        self._updatemodel(model_to_set)
+        self._mapB()
+

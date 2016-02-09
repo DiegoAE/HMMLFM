@@ -1,0 +1,160 @@
+from hmm.continuous.LFMHMMcontinuous import LFMHMMcontinuous
+from matplotlib import pyplot as plt
+import numpy as np
+import scipy.io as sio
+
+seed = np.random.random_integers(10000)
+# seed = 4748
+np.random.seed(seed)
+print "USED SEED", seed
+
+### LFM HMM
+number_lfm = 1
+outputs = 1
+start_t = 0.1
+end_t = 5.1
+locations_per_segment = 64
+n_latent_forces = 1  # currently not passing this argument to the model.
+
+# Dummy initial values for model parameters.
+pi = np.zeros(number_lfm)
+A = np.zeros((number_lfm, number_lfm))
+damper_constants = np.ones((number_lfm, outputs))
+spring_constants = np.ones((number_lfm, outputs))
+lengthscales = np.ones((number_lfm, n_latent_forces))
+noise_var = 0.0005
+
+lfm_hmm = LFMHMMcontinuous(
+    number_lfm,
+    A,
+    pi,
+    outputs,
+    start_t,
+    end_t,
+    locations_per_segment,
+    damper_constants,
+    spring_constants,
+    lengthscales,
+    noise_var,
+    verbose=True,
+)
+lfm_hmm.reset()
+
+
+
+
+mat_file = sio.loadmat('samples.mat')
+
+x = mat_file['XTest'][0][-1]  # all sample locations
+n_samples = np.size(x)
+picked_sample = 0
+f = mat_file['yTest'][0][-1][0][picked_sample]
+n_outputs = f.shape[1]
+Y = np.zeros((n_samples, n_outputs))
+for i in xrange(n_outputs):
+    Y[:, i] = f[0][i].flatten()
+
+
+# testing_idx = 62
+# print "X ", x[0][testing_idx]
+# print "Y ", obs[testing_idx, 0], obs[testing_idx, 1]
+#
+# testing_idx = 63
+# print "X ", x[0][testing_idx]
+# print "Y ", obs[testing_idx, 0], obs[testing_idx, 1]
+
+plt.plot(x.flatten(), Y)
+plt.show()
+
+
+# Setting observations in the model.
+channel_id = 0
+number_training_sequences = 1
+obs = []
+for s in xrange(number_training_sequences):
+    number_segments = 7  # fixed for now.
+    c_obs = np.zeros((number_segments, locations_per_segment))
+    signal = Y[:, channel_id]
+    idx = 0
+    for i in xrange(number_segments):
+        c_obs[i, :] = signal[idx:idx + locations_per_segment]
+        idx = idx + locations_per_segment - 1
+    obs.append(c_obs)
+lfm_hmm.set_observations(obs)
+
+
+print "before training"
+print lfm_hmm.pi
+print lfm_hmm.A
+print lfm_hmm.LFMparams
+
+train_flag = False
+if train_flag:
+    lfm_hmm.train()
+    lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaSDLFM_1")
+else:
+    lfm_hmm.read_params("/home/diego/tmp/Parameters", "pruebaSDLFM_1")
+
+print "after training"
+print lfm_hmm.pi
+print lfm_hmm.A
+print lfm_hmm.LFMparams
+
+# Second experiment: Regression
+number_testing_points = 100
+regression_hidden_states = lfm_hmm._viterbi()[0]
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+considered_segments = 7
+for i in xrange(considered_segments):
+    c_hidden_state = regression_hidden_states[i]
+    c_obv = obs[0][i]
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, number_testing_points)
+    mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
+    sl = lfm_hmm.sample_locations
+    plt.scatter(last_value + sl - sl[0], c_obv, facecolors='none',
+                label=[None, 'observations'][i == 0])
+    plt.plot(last_value + t_test - t_test[0], mean_pred, color='green',
+             label=[None, 'predicted mean'][i == 0])
+    diag_cov = np.diag(cov_pred)
+    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+    last_value = last_value + end_t - start_t
+    plt.axvline(x=last_value, color='red', linestyle='--')
+
+
+print "Inferred hidden states ", regression_hidden_states
+
+plt.title("Fitting of the model given an observation sequence.")
+plt.legend(loc='upper left')
+plt.show()
+
+
+# Plotting the priors
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+for i in xrange(considered_segments):
+    c_hidden_state = regression_hidden_states[i]
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, locations_per_segment)
+    mean_prior = np.zeros(len(t_test))
+    cov_prior = lfm_hmm.lfms[c_hidden_state].Kyy()
+    plt.plot(last_value + t_test - t_test[0], mean_prior, color='green')
+    diag_cov = np.diag(cov_prior)
+    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() - 2 * np.sqrt(diag_cov), 'k--')
+    plt.plot(last_value + t_test - t_test[0], mean_prior.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+    last_value = last_value + end_t - start_t
+    plt.axvline(x=last_value, color='red', linestyle='--')
+
+plt.title("Plotting priors.")
+plt.show()
+
+
+
+
+
+
+
+
+

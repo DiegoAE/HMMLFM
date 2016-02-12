@@ -9,11 +9,11 @@ np.random.seed(seed)
 print "USED SEED", seed
 
 ### LFM HMM
-number_lfm = 1
+number_lfm = 3
 outputs = 1
 start_t = 0.1
-end_t = 5.1
-locations_per_segment = 64
+end_t = 10.1
+locations_per_segment = 201
 n_latent_forces = 1  # currently not passing this argument to the model.
 
 # Dummy initial values for model parameters.
@@ -41,9 +41,7 @@ lfm_hmm = LFMHMMcontinuous(
 lfm_hmm.reset()
 
 
-
-
-mat_file = sio.loadmat('samples.mat')
+mat_file = sio.loadmat('Samples.mat')
 
 x = mat_file['XTest'][0][-1]  # all sample locations
 n_samples = np.size(x)
@@ -64,6 +62,8 @@ for i in xrange(n_outputs):
 # print "Y ", obs[testing_idx, 0], obs[testing_idx, 1]
 
 plt.plot(x.flatten(), Y)
+for i in xrange(1, 6):
+    plt.axvline(x=10 * i, color='red', linestyle='--')
 plt.show()
 
 
@@ -72,7 +72,7 @@ channel_id = 0
 number_training_sequences = 1
 obs = []
 for s in xrange(number_training_sequences):
-    number_segments = 7  # fixed for now.
+    number_segments = 6  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment))
     signal = Y[:, channel_id]
     idx = 0
@@ -88,7 +88,7 @@ print lfm_hmm.pi
 print lfm_hmm.A
 print lfm_hmm.LFMparams
 
-train_flag = False
+train_flag = True
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaSDLFM_1")
@@ -105,7 +105,7 @@ number_testing_points = 100
 regression_hidden_states = lfm_hmm._viterbi()[0]
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = 7
+considered_segments = 6
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = obs[0][i]

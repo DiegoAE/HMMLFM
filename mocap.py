@@ -6,33 +6,23 @@ import numpy as np
 seed = np.random.random_integers(10000)
 seed = 4748
 np.random.seed(seed)
-print "USED SEED", seed
 
 print "Using GPy version: ", GPy.__version__
 
-data = GPy.util.datasets.cmu_mocap('5', ['13'], sample_every=1)
+data = GPy.util.datasets.cmu_mocap('43', ['01'], sample_every=1)
 print data['info']
-Y = data['Y']
+Y = data['Y'][70:, :]
 nsamples, nfeatures = Y.shape
 print "Y's shape ", Y.shape
 
 
-channel_id = 20
+channel_id = 9
 
 plt.plot(np.arange(nsamples), Y[:, channel_id])
 plt.show()
 
-# print Y[0, :]
-
-
-# Visualisation not working for now.
-# Y[:, 0:3] = 0.   # Make figure walk in place
-# visualize = GPy.util.visualize.skeleton_show(Y[0, :], data['skel'])
-# GPy.util.visualize.data_play(Y, visualize)
-
-
 ### LFM HMM
-number_lfm = 3
+number_lfm = 7
 outputs = 1
 start_t = 0.1
 end_t = 5.1
@@ -68,7 +58,7 @@ lfm_hmm.reset()
 number_training_sequences = 1
 obs = []
 for s in xrange(number_training_sequences):
-    number_segments = 30  # fixed for now.
+    number_segments = 18  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment))
     signal = Y[:, channel_id]
     idx = 0
@@ -84,7 +74,7 @@ print lfm_hmm.pi
 print lfm_hmm.A
 print lfm_hmm.LFMparams
 
-train_flag = False
+train_flag = True
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaMOCAP")
@@ -102,7 +92,7 @@ number_testing_points = 100
 regression_hidden_states = lfm_hmm._viterbi()[0]
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = 30
+considered_segments = 18  # fixed for now.
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = obs[0][i]
@@ -127,5 +117,4 @@ plt.title("Fitting of the model given an observation sequence.")
 plt.legend(loc='upper left')
 plt.show()
 
-
-
+print "USED SEED", seed

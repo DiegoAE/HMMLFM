@@ -149,15 +149,16 @@ class _BaseHMM(object):
 
             # termination: find the maximum probability for
             # the entire sequence (=highest prob path)
-            p_max = 0  # max value in time T (max)
+            p_max = -numpy.inf  # max value in time T (max)
             # the states are discrete.
             path = numpy.zeros(n_observations, dtype=numpy.int)
             for i in xrange(self.n):
                 if p_max < delta[n_observations-1][i]:
                     p_max = delta[n_observations-1][i]
                     path[n_observations-1] = i
-            assert p_max > 0, "There is not a sequence of hidden states with " \
-                              "(numerically) nonzero probability."
+            assert p_max > -numpy.inf, "There is not a sequence of hidden" \
+                                        "states with (numerically) nonzero" \
+                                        "probability."
             # path backtracing
             for i in xrange(1, n_observations):
                 path[n_observations-i-1] = \

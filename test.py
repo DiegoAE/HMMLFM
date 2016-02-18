@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 seed = np.random.random_integers(10000)
-# seed = 1928
+seed = 1928
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -30,20 +30,10 @@ lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
 noise_var = 0.0005  # Viterbi starts failing when this noise is set.
 
-lfm_hmm = LFMHMMcontinuous(
-    number_lfm,
-    A,
-    pi,
-    outputs,
-    start_t,
-    end_t,
-    locations_per_segment,
-    damper_constants,
-    spring_constants,
-    lengthscales,
-    noise_var,
-    verbose=True,
-)
+lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
+                           end_t, verbose=True)
+lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
+                   noise_var)
 
 # Testing packing and unpacking
 print "Testing packing and unpacking: ",
@@ -151,21 +141,10 @@ plt.show()
 # now the lfm_hmm has the estimated pi and A
 # it's necessary to create a new instance of LFMHMM
 
-lfm_hmm_reference = LFMHMMcontinuous(
-    number_lfm,
-    A,
-    pi,
-    outputs,
-    start_t,
-    end_t,
-    locations_per_segment,
-    damper_constants,
-    spring_constants,
-    lengthscales,
-    noise_var,
-    verbose=True,
-)
-
+lfm_hmm_reference = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment,
+                                     start_t, end_t, verbose=True)
+lfm_hmm_reference.set_params(A, pi, damper_constants, spring_constants,
+                             lengthscales, noise_var)
 obs = []
 n_training_sequences = 20
 hidden_states_reference = np.zeros(n_training_sequences, dtype=object)
@@ -260,21 +239,10 @@ plt.show()
 
 number_testing_points = 191
 
-lfm_validation = LFMHMMcontinuous(
-    number_lfm,
-    A,
-    pi,
-    outputs,
-    start_t,
-    end_t,
-    number_testing_points,
-    damper_constants,
-    spring_constants,
-    lengthscales,
-    noise_var,
-    verbose=True,
-)
-
+lfm_validation = LFMHMMcontinuous(outputs, number_lfm, number_testing_points,
+                                  start_t, end_t, verbose=True)
+lfm_validation.set_params(A, pi, damper_constants, spring_constants,
+                          lengthscales, noise_var)
 n_segments = 5
 full_observation, reference_states = lfm_validation.generate_observations(n_segments)
 sampled_observation = np.zeros((n_segments, 20))

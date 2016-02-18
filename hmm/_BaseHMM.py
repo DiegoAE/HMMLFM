@@ -210,8 +210,6 @@ class _BaseHMM(object):
         # observations. Currently there are some functions which need other
         # functions to be called beforehand and this dependency isn't explicit
         # right now.
-        # TODO: Setter method for observations.
-
 
         for t in xrange(seq_len):
             for i in xrange(self.n):

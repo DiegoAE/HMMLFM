@@ -35,18 +35,11 @@ def _parallel_hyperparameter_objective(tup):
 
 class LFMHMM(_BaseHMM):
 
-    def __init__(self, n, A, pi, number_outputs, start_t, end_t,
-                 locations_per_segment, damper, spring, lengthscales,
-                 noise_var, precision=np.double, verbose=False):
+    def __init__(self, number_outputs, n, locations_per_segment, start_t, end_t,
+                 precision=np.double, verbose=False):
         assert n > 0
         assert locations_per_segment > 0
-        assert A.shape == (n, n)
-        assert (pi.shape == (n, 1)) or (pi.shape == (n, ))
         assert number_outputs > 0
-        assert len(damper) == len(spring) == len(lengthscales) == n
-        assert all([len(x) == number_outputs for x in damper])
-        assert all([len(x) == number_outputs for x in spring])
-        _BaseHMM.__init__(self, n, None, precision, verbose)
         self.n = n  # number of hidden states
         self.number_outputs = number_outputs
         self.start_t = start_t
@@ -54,33 +47,21 @@ class LFMHMM(_BaseHMM):
         self.sample_locations = np.linspace(start_t, end_t,
                                             locations_per_segment)
         self.locations_per_segment = locations_per_segment
-        # TODO: make the number of latent forces a parameter.
-        # and the same thing with the sensitivities. For now all them are 1.
-        self.number_latent_f = 1
-        # implicit assumption of sensitivities being equal to one.
-        sensi = np.ones((n, number_outputs, self.number_latent_f))
-        # ======
         # Pool of workers to perform parallel computations when need it.
         self.pool = mp.Pool()
-        #
-        pdict = {}
-        pdict['spring'] = spring
-        pdict['damper'] = damper
-        pdict['sensi'] = sensi
-        pdict['noise_var'] = noise_var
-        pdict['lengthscales'] = lengthscales
-        self.LFMparams = pdict
         # covariance memoization
         self.memo_covs = {}
+        # TODO: make the number of latent forces a parameter.
+        self.number_latent_f = 1
+        # initially not LFM params.
+        self.LFMparams = {}
         # Latent Force Model objects
         self.lfms = np.zeros(n, dtype='object')
         for i in xrange(n):
-            self.lfms[i] = lfm2(1, number_outputs)
+            self.lfms[i] = lfm2(self.number_latent_f, number_outputs)
             self.lfms[i].set_inputs_with_same_ind(self.sample_locations)
-        # Setting the transition matrix, the initial stater PMF and the emission
-        # params.
-        params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
-        self._updatemodel(params_to_set)
+        _BaseHMM.__init__(self, n, None, precision, verbose)
+        self.reset()
 
     def pack_params(self, params_dict):
         # Note: reestimate parameters has to work with self.LFMparams
@@ -136,13 +117,12 @@ class LFMHMM(_BaseHMM):
 
 
     def reset(self,init_type='uniform', emissions_reset=True):
-        '''
-        If required, initalize the model parameters according the selected policy
-        '''
+        """If required, initialize the model parameters according the selected
+        policy."""
         if init_type == 'uniform':
             pi = np.ones(self.n, dtype=self.precision)*(1.0/self.n)
             A = np.ones((self.n,self.n), dtype=self.precision)*(1.0/self.n)
-            new_params = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
+            new_params = {'A': A, 'pi': pi}
             if emissions_reset:
                 LFMparams = {}
                 LFMparams['spring'] = np.random.rand(
@@ -156,11 +136,36 @@ class LFMHMM(_BaseHMM):
                 # Assuming the same noise for all the outputs and LFM's.
                 LFMparams['noise_var'] = 1e2
                 new_params['LFMparams'] = LFMparams
+            else:
+                new_params['LFMparams'] = self.LFMparams
             self._updatemodel(new_params)
             if self.observations is not None:
                 self._mapB()
         else:
             raise LFMHMMError("reset init_type not supported.")
+
+    def set_params(self, A, pi, damper, spring, lengthscales, noise_var):
+        n = self.n
+        assert A.shape == (n, n)
+        assert (pi.shape == (n, 1)) or (pi.shape == (n, ))
+        assert len(damper) == len(spring) == len(lengthscales) == n
+        assert all([len(x) == self.number_outputs for x in damper])
+        assert all([len(x) == self.number_outputs for x in spring])
+        # TODO: Assumption of sensitivities being equal to one. Make a parameter
+        sensi = np.ones((n, self.number_outputs, self.number_latent_f))
+        pdict = {}
+        pdict['spring'] = spring
+        pdict['damper'] = damper
+        pdict['sensi'] = sensi
+        pdict['noise_var'] = noise_var
+        pdict['lengthscales'] = lengthscales
+        self.LFMparams = pdict
+        # Setting the transition matrix, the initial state PMF and the emission
+        # params.
+        params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
+        self._updatemodel(params_to_set)
+        if self.observations is not None:
+                self._mapB()
 
     def generate_observations(self, segments, hidden_s=None):
         output = np.zeros((segments, self.locations_per_segment),
@@ -169,14 +174,14 @@ class LFMHMM(_BaseHMM):
         hidden_states = [initial_state]
         for x in xrange(1, segments):
             hidden_states.append(np.nonzero(np.random.multinomial(
-                1, self.A[hidden_states[-1]]))[0][0])
+                    1, self.A[hidden_states[-1]]))[0][0])
         if hidden_s:
             hidden_states = hidden_s
         for i in xrange(len(hidden_states)):
             state = hidden_states[i]
             cov = self.get_cov_function(state)
             realization = np.random.multivariate_normal(
-                mean=np.zeros(cov.shape[0]), cov=cov)
+                    mean=np.zeros(cov.shape[0]), cov=cov)
             output[i, :] = realization
         print "Hidden States", hidden_states
         return output, hidden_states
@@ -208,9 +213,9 @@ class LFMHMM(_BaseHMM):
         obs = obs.reshape((-1, 1))
         Ktt = self.get_cov_function(hidden_state)
         ktstar = self.get_cov_function_explicit(
-            hidden_state, self.sample_locations, np.asarray(t_step))
+                hidden_state, self.sample_locations, np.asarray(t_step))
         Kstarstar = self.get_cov_function_explicit(
-            hidden_state, np.asarray(t_step),  np.asarray(t_step))
+                hidden_state, np.asarray(t_step),  np.asarray(t_step))
         mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
         cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
         return mean_pred, cov_pred
@@ -347,11 +352,13 @@ class LFMHMM(_BaseHMM):
             number_of_segments = len(self.observations[j])
             for i in xrange(self.n):
                 cov = self.get_cov_function(i)
+                # print "cond:", np.linalg.cond(cov)
                 for t in xrange(number_of_segments):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
-                        self.observations[j][t], np.zeros(cov.shape[0]),
-                        cov, False)  # Allowing singularity in cov sometimes.
-                                     # This is weird.
+                            self.observations[j][t], np.zeros(cov.shape[0]),
+                            cov, True)  # Allowing singularity in cov sometimes.
+                    #  This is weird.
+        # print self.B_maps
 
     def save_params(self, dir, name):
         f = file('%s/%s.param' % (dir, name), 'w')
@@ -380,7 +387,7 @@ class LFMHMM(_BaseHMM):
             pi_string += read_line
             read_line = f.readline()
         f.close()
-        from numpy import array  # required for eval to work.
+        from numpy import array, nan  # required for eval to work.
         model_to_set = {
             'LFMparams': eval(LFMparams_string),
             'A': eval(A_string),
@@ -388,10 +395,10 @@ class LFMHMM(_BaseHMM):
         }
         assert model_to_set['A'].shape == (self.n, self.n)
         assert np.size(model_to_set['pi']) == self.n
-        assert model_to_set['LFMparams']['spring'].shape ==\
-               model_to_set['LFMparams']['damper'].shape ==\
+        assert model_to_set['LFMparams']['spring'].shape == \
+               model_to_set['LFMparams']['damper'].shape == \
                (self.n, self.number_outputs)
-        assert model_to_set['LFMparams']['lengthscales'].shape ==\
+        assert model_to_set['LFMparams']['lengthscales'].shape == \
                (self.n, self.number_latent_f)
         self._updatemodel(model_to_set)
         self._mapB()

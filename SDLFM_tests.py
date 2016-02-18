@@ -14,32 +14,10 @@ outputs = 1
 start_t = 0.1
 end_t = 10.1
 locations_per_segment = 201
-n_latent_forces = 1  # currently not passing this argument to the model.
+n_latent_forces = 1  # TODO: currently not passing this argument to the model.
 
-# Dummy initial values for model parameters.
-pi = np.zeros(number_lfm)
-A = np.zeros((number_lfm, number_lfm))
-damper_constants = np.ones((number_lfm, outputs))
-spring_constants = np.ones((number_lfm, outputs))
-lengthscales = np.ones((number_lfm, n_latent_forces))
-noise_var = 0.0005
-
-lfm_hmm = LFMHMMcontinuous(
-    number_lfm,
-    A,
-    pi,
-    outputs,
-    start_t,
-    end_t,
-    locations_per_segment,
-    damper_constants,
-    spring_constants,
-    lengthscales,
-    noise_var,
-    verbose=True,
-)
-lfm_hmm.reset()
-
+lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
+                           end_t, verbose=True)
 
 mat_file = sio.loadmat('Samples.mat')
 
@@ -88,7 +66,7 @@ print lfm_hmm.pi
 print lfm_hmm.A
 print lfm_hmm.LFMparams
 
-train_flag = True
+train_flag = False
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaSDLFM_1")

@@ -1,6 +1,6 @@
 __author__ = 'diego'
 
-from hmm.continuous.LFMHMM import LFMHMM
+from hmm.continuous.LFMHMMcontinuous import LFMHMMcontinuous
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -26,23 +26,13 @@ lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
 noise_var = 0.0005  # Viterbi starts failing when this noise is set.
 
-lfm_hmm = LFMHMM(
-    number_lfm,
-    A,
-    pi,
-    outputs,
-    start_t,
-    end_t,
-    locations_per_segment,
-    damper_constants,
-    spring_constants,
-    lengthscales,
-    noise_var,
-    verbose=True,
-)
+lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t, end_t,
+                 verbose=True)
+lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
+                   noise_var)
 
 segments = 10
-obs_1, _ = lfm_hmm.generate_continuous_observations(segments)
+obs_1, _ = lfm_hmm.generate_observations(segments)
 last_value = 0
 for i in xrange(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')

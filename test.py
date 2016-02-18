@@ -264,6 +264,7 @@ for i in xrange(n_segments):
 print "The RMSE error in regression is %f" % np.sqrt(rmse)
 
 # the same motor primitive were recovered.
+# prueba
 
 
 

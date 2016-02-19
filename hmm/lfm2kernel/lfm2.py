@@ -40,12 +40,9 @@ class lfm2():
         it returns the sample locations vector (t) stacked noutputs times and
         the corresponding array of indexes for each output.
         """
-        idx = np.zeros(shape=(0, 1), dtype=np.int8)
-        time_length = len(t)
-        stacked_time = np.zeros(shape=(0, 1))
-        for d in xrange(self.D):
-            idx = np.vstack((idx, d * np.ones((time_length, 1), dtype=np.int8)))
-            stacked_time = np.vstack((stacked_time, t.reshape(-1, 1)))
+        stacked_time = np.repeat(t, self.D).reshape((-1, 1))
+        idx = np.tile(np.arange(self.D, dtype='int'),
+                      np.size(t)).reshape((-1, 1))
         return stacked_time, idx
 
     def set_outputs(self, y):

@@ -28,7 +28,7 @@ spring_constants = np.asarray([[3.], [1.], [5.]])
 # lengthscales = np.asarray([8., 10., 12.])
 lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
-noise_var = 0.0005  # Viterbi starts failing when this noise is set.
+noise_var = np.array([0.0005])  # Viterbi starts failing when this noise is set.
 
 lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
                            end_t, verbose=True)
@@ -264,7 +264,6 @@ for i in xrange(n_segments):
 print "The RMSE error in regression is %f" % np.sqrt(rmse)
 
 # the same motor primitive were recovered.
-# prueba
 
 
 

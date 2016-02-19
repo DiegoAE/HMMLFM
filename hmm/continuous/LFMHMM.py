@@ -79,8 +79,7 @@ class LFMHMM(_BaseHMM):
                                 np.log(lengthscales[i])), axis=0)
             packed_params.append(p)
         packed_params = np.concatenate(packed_params)
-        packed_params = np.concatenate((packed_params,
-                                        np.log(np.array([noise_var])) ))
+        packed_params = np.concatenate((packed_params, np.log(noise_var)))
         return packed_params
 
     def unpack_params(self, params_array):
@@ -89,7 +88,7 @@ class LFMHMM(_BaseHMM):
         damper = np.zeros((self.n, self.number_outputs))
         sensi = np.zeros((self.n, self.number_outputs, self.number_latent_f))
         lengthscales = np.zeros((self.n, self.number_latent_f))
-        noise_var = 0
+        noise_var = np.zeros(self.number_outputs)
         idx = 0
         for i in xrange(self.n):
             for j in xrange(self.number_outputs):
@@ -105,8 +104,9 @@ class LFMHMM(_BaseHMM):
             for j in xrange(self.number_latent_f):
                 lengthscales[i][j] = np.exp(params_array[idx])
                 idx += 1
-        noise_var = np.exp(params_array[idx])
-        idx += 1
+        for j in xrange(self.number_outputs):
+            noise_var[j] = np.exp(params_array[idx])
+            idx += 1
         assert idx == np.size(params_array)
         ret_dict['spring'] = spring
         ret_dict['damper'] = damper
@@ -130,11 +130,11 @@ class LFMHMM(_BaseHMM):
                 LFMparams['damper'] = np.random.rand(
                         self.n, self.number_outputs) * 2.
                 LFMparams['lengthscales'] = np.random.rand(
-                        self.n, self.number_outputs) * 2.
+                        self.n, self.number_latent_f) * 2.
                 LFMparams['sensi'] = np.random.randn(
                         self.n, self.number_outputs, self.number_latent_f)
-                # Assuming the same noise for all the outputs and LFM's.
-                LFMparams['noise_var'] = 1e2
+                # Assuming different noises for each output.
+                LFMparams['noise_var'] = np.array([1e2] * self.number_outputs)
                 new_params['LFMparams'] = LFMparams
             else:
                 new_params['LFMparams'] = self.LFMparams
@@ -151,6 +151,7 @@ class LFMHMM(_BaseHMM):
         assert len(damper) == len(spring) == len(lengthscales) == n
         assert all([len(x) == self.number_outputs for x in damper])
         assert all([len(x) == self.number_outputs for x in spring])
+        assert noise_var.shape == (self.number_outputs,)
         # TODO: Assumption of sensitivities being equal to one. Make a parameter
         sensi = np.ones((n, self.number_outputs, self.number_latent_f))
         pdict = {}
@@ -291,12 +292,13 @@ class LFMHMM(_BaseHMM):
         # So it is expected to update it  after/before using this.
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
+        noise_params = lfms_params[per_lfm * self.n:]
+        assert np.size(noise_params) == self.number_outputs
         # updating each of the lfm's (i.e. hidden states) with the new params.
         for i in xrange(self.n):
             no_noise_params = lfms_params[i * per_lfm: (i + 1) * per_lfm]
-            noise_param = lfms_params[-1:]
             self.lfms[i].set_params(
-                    np.concatenate((no_noise_params, noise_param)), False)
+                    np.concatenate((no_noise_params, noise_params)), False)
 
     def _get_bounds(self):
         tam_sensi = self.number_outputs * self.number_latent_f
@@ -400,6 +402,8 @@ class LFMHMM(_BaseHMM):
                (self.n, self.number_outputs)
         assert model_to_set['LFMparams']['lengthscales'].shape == \
                (self.n, self.number_latent_f)
+        assert model_to_set['LFMparams']['noise_var'].shape == \
+               (self.number_outputs,)
         self._updatemodel(model_to_set)
         self._mapB()
 

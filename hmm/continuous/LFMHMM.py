@@ -169,8 +169,9 @@ class LFMHMM(_BaseHMM):
                 self._mapB()
 
     def generate_observations(self, segments, hidden_s=None):
-        output = np.zeros((segments, self.locations_per_segment),
-                          dtype=self.precision)
+        output = np.zeros((segments,
+                           self.locations_per_segment * self.number_outputs),
+                           dtype=self.precision)
         initial_state = np.nonzero(np.random.multinomial(1, self.pi))[0][0]
         hidden_states = [initial_state]
         for x in xrange(1, segments):

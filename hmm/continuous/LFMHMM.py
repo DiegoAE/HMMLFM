@@ -312,10 +312,10 @@ class LFMHMM(_BaseHMM):
             bounds.extend(f)
             bounds.extend(s)
             bounds.extend(t)
-        bounds.append((None, upper))  # noise variance bound.
-        total_length = self.n * (2*self.number_outputs +
-                                 self.number_latent_f *
-                                 (1 + self.number_outputs)) + 1
+        for i in xrange(self.number_outputs):
+            bounds.append((None, upper))  # noise variance bounds.
+        total_length = self.n * (2*self.number_outputs + self.number_latent_f *
+                                 (1 + self.number_outputs))+self.number_outputs
         assert len(bounds) == total_length
         return bounds
 

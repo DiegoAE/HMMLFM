@@ -4,6 +4,7 @@ import numpy as np
 
 class LFMHMMcontinuousMO(LFMHMM):
     def __init__(self, *args, **kwargs):
+        self.segment_shifts = None
         super(LFMHMMcontinuousMO, self).__init__(*args, **kwargs)
 
     def generate_observations(self, segments):
@@ -38,22 +39,30 @@ class LFMHMMcontinuousMO(LFMHMM):
         print "Hidden States", hidden_states
         return output, hidden_states
 
-    # def set_observations(self, observations):
-    #     # The input obs. must not to be changed.
-    #     obs = copy.deepcopy(observations)
-    #     # is it necessary to store the original observations?
-    #     number_of_sequences = len(obs)
-    #     self.segment_shifts = np.zeros(number_of_sequences, dtype='object')
-    #     for s in xrange(number_of_sequences):
-    #         length_ob = len(obs[s])
-    #         self.segment_shifts[s] = np.zeros(length_ob, dtype=self.precision)
-    #         for i in xrange(length_ob):
-    #             self.segment_shifts[s][i] = obs[s][i][0]
-    #             obs[s][i] -= self.segment_shifts[s][i]
-    #     super(LFMHMMcontinuous, self).set_observations(obs)
-    #
-    # def predict(self, t_step, hidden_state, obs):
-    #     current_shift = obs[0]
-    #     mean_pred, cov_pred = super(LFMHMMcontinuous, self).predict(
-    #             t_step, hidden_state, obs - current_shift)
-    #     return mean_pred + current_shift, cov_pred
+    def set_observations(self, observations):
+        # The input obs. must not to be changed.
+        obs = copy.deepcopy(observations)
+        # is it necessary to store the original observations?
+        number_of_sequences = len(obs)
+        self.segment_shifts = np.zeros(number_of_sequences, dtype='object')
+        for s in xrange(number_of_sequences):
+            length_ob = len(obs[s])
+            self.segment_shifts[s] = np.zeros((length_ob, self.number_outputs),
+                                              dtype=self.precision)
+            for i in xrange(length_ob):
+                self.segment_shifts[s][i] = obs[s][i][:self.number_outputs]
+                for j in xrange(self.number_outputs):
+                    obs[s][i][j::self.number_outputs] -=\
+                        self.segment_shifts[s][i][j]
+        super(LFMHMMcontinuousMO, self).set_observations(obs)
+
+    def predict(self, t_step, hidden_state, observations):
+        obs = copy.deepcopy(observations)
+        current_shift = obs[:self.number_outputs].copy()
+        for j in xrange(self.number_outputs):
+            obs[j::self.number_outputs] -= current_shift[j]
+        mean_pred, cov_pred = super(LFMHMMcontinuousMO, self).predict(
+                t_step, hidden_state, obs)
+        for j in xrange(self.number_outputs):
+            mean_pred[j::self.number_outputs] += current_shift[j]
+        return mean_pred, cov_pred

@@ -15,9 +15,8 @@ class lfm2():
         self.l = np.random.rand(self.Q)*2.
         self.S = np.random.randn(self.D,self.Q)
         self.sn = np.ones(self.D)*1e2
-        self.params = np.concatenate((np.log(self.B), np.log(self.C),
-                                      np.hstack(self.S), np.log(self.l),
-                                      np.log(self.sn)), axis=0)
+        self.params = np.concatenate((self.B, self.C, np.hstack(self.S), self.l,
+                                      self.sn), axis=0)
         if params is not None:
             self.params = params
         self.l2pi = np.log(2.*np.pi)
@@ -56,11 +55,11 @@ class lfm2():
         assert np.size(params) == self.nvar
         self.params = params
         for q in range(self.Q):
-            self.l[q] = np.exp(params[(2+self.Q)*self.D+q])
+            self.l[q] = params[(2+self.Q)*self.D+q]
         for d in range(self.D):
-            self.B[d] = np.exp(params[d]) #Spring coefficients
-            self.C[d] = np.exp(params[d+self.D]) #Damper coefficients
-            self.sn[d] = np.exp(params[(2+self.Q)*self.D+self.Q+d])
+            self.B[d] = params[d]  # Spring coefficients
+            self.C[d] = params[d+self.D]  # Damper coefficients
+            self.sn[d] = params[(2+self.Q)*self.D+self.Q+d]
             for q in range(self.Q):
                 self.S[d][q] = params[2*self.D+q+d*self.Q]
         self.updated = False

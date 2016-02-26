@@ -1,12 +1,12 @@
 __author__ = 'diego'
 
 from hmm.continuous.LFMHMM import LFMHMM
-from hmm.continuous.LFMHMMcontinuous import LFMHMMcontinuous
+from hmm.continuous.LFMHMMcontinuousMO import LFMHMMcontinuousMO
 from matplotlib import pyplot as plt
 import numpy as np
 
 seed = np.random.random_integers(10000)
-seed = 1928
+seed = 6490
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -30,7 +30,7 @@ lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
 noise_var = np.array([0.0005])  # Viterbi starts failing when this noise is set.
 
-lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
+lfm_hmm = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment, start_t,
                            end_t, verbose=True)
 lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
                    noise_var)
@@ -91,9 +91,9 @@ print "start training"
 train_flag = False
 if train_flag:
     lfm_hmm.train()
-    lfm_hmm.save_params("/home/diego/tmp/Parameters", "prueba")
+    lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaSO")
 else:
-    lfm_hmm.read_params("/home/diego/tmp/Parameters", "prueba")
+    lfm_hmm.read_params("/home/diego/tmp/Parameters", "pruebaSO")
 
 
 print "after training"
@@ -141,7 +141,7 @@ plt.show()
 # now the lfm_hmm has the estimated pi and A
 # it's necessary to create a new instance of LFMHMM
 
-lfm_hmm_reference = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment,
+lfm_hmm_reference = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
                                      start_t, end_t, verbose=True)
 lfm_hmm_reference.set_params(A, pi, damper_constants, spring_constants,
                              lengthscales, noise_var)
@@ -239,7 +239,7 @@ plt.show()
 
 number_testing_points = 191
 
-lfm_validation = LFMHMMcontinuous(outputs, number_lfm, number_testing_points,
+lfm_validation = LFMHMMcontinuousMO(outputs, number_lfm, number_testing_points,
                                   start_t, end_t, verbose=True)
 lfm_validation.set_params(A, pi, damper_constants, spring_constants,
                           lengthscales, noise_var)
@@ -264,6 +264,7 @@ for i in xrange(n_segments):
 print "The RMSE error in regression is %f" % np.sqrt(rmse)
 
 # the same motor primitive were recovered.
+print "USED SEED", seed
 
 
 

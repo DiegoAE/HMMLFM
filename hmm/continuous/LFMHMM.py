@@ -74,12 +74,11 @@ class LFMHMM(_BaseHMM):
         noise_var = params_dict['noise_var']
         packed_params = []
         for i in xrange(self.n):
-            p = np.concatenate((np.log(spring[i]), np.log(damper[i]),
-                                np.hstack(sensi[i]),
-                                np.log(lengthscales[i])), axis=0)
+            p = np.concatenate((spring[i], damper[i], np.hstack(sensi[i]),
+                                lengthscales[i]), axis=0)
             packed_params.append(p)
         packed_params = np.concatenate(packed_params)
-        packed_params = np.concatenate((packed_params, np.log(noise_var)))
+        packed_params = np.concatenate((packed_params, noise_var))
         return packed_params
 
     def unpack_params(self, params_array):
@@ -92,20 +91,20 @@ class LFMHMM(_BaseHMM):
         idx = 0
         for i in xrange(self.n):
             for j in xrange(self.number_outputs):
-                spring[i][j] = np.exp(params_array[idx])
+                spring[i][j] = params_array[idx]
                 idx += 1
             for j in xrange(self.number_outputs):
-                damper[i][j] = np.exp(params_array[idx])
+                damper[i][j] = params_array[idx]
                 idx += 1
             for j in xrange(self.number_outputs):
                 for k in xrange(self.number_latent_f):
                     sensi[i][j][k] = params_array[idx]
                     idx += 1
             for j in xrange(self.number_latent_f):
-                lengthscales[i][j] = np.exp(params_array[idx])
+                lengthscales[i][j] = params_array[idx]
                 idx += 1
         for j in xrange(self.number_outputs):
-            noise_var[j] = np.exp(params_array[idx])
+            noise_var[j] = params_array[idx]
             idx += 1
         assert idx == np.size(params_array)
         ret_dict['spring'] = spring
@@ -254,7 +253,7 @@ class LFMHMM(_BaseHMM):
         mvgs = []
         for i in xrange(self.n):
             cov = self.get_cov_function(i, False)
-            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov, True)
+            mvg = stats.multivariate_normal(np.zeros(cov.shape[0]), cov, False)
             mvgs.append(mvg)
         d = {
             'mvgs': mvgs,
@@ -303,17 +302,18 @@ class LFMHMM(_BaseHMM):
 
     def _get_bounds(self):
         tam_sensi = self.number_outputs * self.number_latent_f
-        upper = 10.0
+        upper = 10000.0
+        lower = 1e-8
         bounds = []
         for i in xrange(self.n):
-            f = [(None, upper)] * (2 * self.number_outputs)  # spring & damper.
+            f = [(lower, upper)] * (2 * self.number_outputs)  # spring & damper.
             s = [(None, None)] * tam_sensi  # sensitivities bound.
-            t = [(None, upper)] * self.number_latent_f  # length-scales bound.
+            t = [(lower, None)] * self.number_latent_f  # length-scales bound.
             bounds.extend(f)
             bounds.extend(s)
             bounds.extend(t)
         for i in xrange(self.number_outputs):
-            bounds.append((None, upper))  # noise variance bounds.
+            bounds.append((lower, None))  # noise variance bounds.
         total_length = self.n * (2*self.number_outputs + self.number_latent_f *
                                  (1 + self.number_outputs))+self.number_outputs
         assert len(bounds) == total_length
@@ -406,5 +406,6 @@ class LFMHMM(_BaseHMM):
         assert model_to_set['LFMparams']['noise_var'].shape == \
                (self.number_outputs,)
         self._updatemodel(model_to_set)
-        self._mapB()
+        if self.observations:
+            self._mapB()
 

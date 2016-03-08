@@ -88,7 +88,7 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-train_flag = False
+train_flag = True
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters", "pruebaSO")

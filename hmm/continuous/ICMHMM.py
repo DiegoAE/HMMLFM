@@ -1,11 +1,12 @@
 __author__ = 'diego'
 
 from hmm._BaseHMM import _BaseHMM
-from hmm.kernels.lfm2 import lfm2
+from hmm.kernels.icm import icm
 from scipy import optimize
 from scipy import stats
 import multiprocessing as mp
 import numpy as np
+import GPy
 
 
 class LFMHMMError(Exception):
@@ -33,7 +34,7 @@ def _parallel_hyperparameter_objective(tup):
             weighted_sum += gamma[t][i] * mvg.logpdf(observation[t])
     return weighted_sum
 
-class LFMHMM(_BaseHMM):
+class ICMHMM(_BaseHMM):
 
     def __init__(self, number_outputs, n, locations_per_segment, start_t, end_t,
                  precision=np.double, verbose=False):
@@ -51,67 +52,61 @@ class LFMHMM(_BaseHMM):
         self.pool = mp.Pool()
         # covariance memoization
         self.memo_covs = {}
-        # TODO: make the number of latent forces a parameter.
-        self.number_latent_f = 1
-        # initially not LFM params.
-        self.LFMparams = {}
-        # Latent Force Model objects
-        self.lfms = np.zeros(n, dtype='object')
+        self.ICMparams = {} # TODO: not sure if this will be necessary.
+        # different icms.
+        self.icms = np.zeros(n, dtype='object')
         for i in xrange(n):
-            self.lfms[i] = lfm2(self.number_latent_f, number_outputs)
-            self.lfms[i].set_inputs_with_same_ind(self.sample_locations)
+            self.icms[i] = icm(number_outputs, self.sample_locations)
         _BaseHMM.__init__(self, n, None, precision, verbose)
         self.reset()
 
     def pack_params(self, params_dict):
-        # Note: reestimate parameters has to work with self.LFMparams
+        # Note: reestimate parameters has to work with self.ICMparams
         # and in the optimization process you should work with the flattened
         # array.
-        spring = params_dict['spring']
-        damper = params_dict['damper']
-        sensi = params_dict['sensi']
-        lengthscales = params_dict['lengthscales']
+        rbf_vars = params_dict['rbf_variances']
+        rbf_lengthscales = params_dict['rbf_lengthscales']
+        Ws = params_dict['Ws']
+        kappas = params_dict['kappas']
         noise_var = params_dict['noise_var']
         packed_params = []
         for i in xrange(self.n):
-            p = np.concatenate((spring[i], damper[i], np.hstack(sensi[i]),
-                                lengthscales[i]), axis=0)
+            tmp = np.array([rbf_vars[i], rbf_lengthscales[i]])
+            p = np.concatenate((tmp, Ws[i, :], kappas[i, :]))
             packed_params.append(p)
         packed_params = np.concatenate(packed_params)
         packed_params = np.concatenate((packed_params, noise_var))
         return packed_params
 
+
     def unpack_params(self, params_array):
         ret_dict = {}
-        spring = np.zeros((self.n, self.number_outputs))
-        damper = np.zeros((self.n, self.number_outputs))
-        sensi = np.zeros((self.n, self.number_outputs, self.number_latent_f))
-        lengthscales = np.zeros((self.n, self.number_latent_f))
+        rbf_variances = np.zeros(self.n)
+        rbf_lengthscales = np.zeros(self.n)
+        Ws = np.zeros((self.n, self.number_outputs))
+        kappas = np.zeros((self.n, self.number_outputs))
         noise_var = np.zeros(self.number_outputs)
         idx = 0
         for i in xrange(self.n):
+            rbf_variances[i] = params_array[idx]
+            idx += 1
+            rbf_lengthscales[i] = params_array[idx]
+            idx += 1
             for j in xrange(self.number_outputs):
-                spring[i][j] = params_array[idx]
+                Ws[i][j] = params_array[idx]
                 idx += 1
             for j in xrange(self.number_outputs):
-                damper[i][j] = params_array[idx]
-                idx += 1
-            for j in xrange(self.number_outputs):
-                for k in xrange(self.number_latent_f):
-                    sensi[i][j][k] = params_array[idx]
-                    idx += 1
-            for j in xrange(self.number_latent_f):
-                lengthscales[i][j] = params_array[idx]
+                kappas[i][j] = params_array[idx]
                 idx += 1
         for j in xrange(self.number_outputs):
             noise_var[j] = params_array[idx]
             idx += 1
         assert idx == np.size(params_array)
-        ret_dict['spring'] = spring
-        ret_dict['damper'] = damper
-        ret_dict['sensi'] = sensi
+        ret_dict['rbf_variances'] = rbf_variances
+        ret_dict['rbf_lengthscales'] = rbf_lengthscales
+        ret_dict['Ws'] = Ws
+        ret_dict['kappas'] = kappas
         ret_dict['noise_var'] = noise_var
-        ret_dict['lengthscales'] = lengthscales
         return ret_dict
 
 
@@ -123,46 +118,41 @@ class LFMHMM(_BaseHMM):
             A = np.ones((self.n,self.n), dtype=self.precision)*(1.0/self.n)
             new_params = {'A': A, 'pi': pi}
             if emissions_reset:
-                LFMparams = {}
-                LFMparams['spring'] = np.random.rand(
-                        self.n, self.number_outputs) * 2.
-                LFMparams['damper'] = np.random.rand(
-                        self.n, self.number_outputs) * 2.
-                LFMparams['lengthscales'] = np.random.rand(
-                        self.n, self.number_latent_f) * 2.
-                LFMparams['sensi'] = np.random.randn(
-                        self.n, self.number_outputs, self.number_latent_f)
+                ICMparams = {}
+                ICMparams['rbf_variances'] = np.ones(self.n)
+                ICMparams['rbf_lengthscales'] = np.ones(self.n)
+                ICMparams['Ws'] = np.random.randn(self.n, self.number_outputs)
+                ICMparams['kappas'] = 0.5*np.ones((self.n, self.number_outputs))
                 # Assuming different noises for each output.
-                LFMparams['noise_var'] = np.array([1e2] * self.number_outputs)
-                new_params['LFMparams'] = LFMparams
+                ICMparams['noise_var'] = np.array([1e2] * self.number_outputs)
+                new_params['ICMparams'] = ICMparams
             else:
-                new_params['LFMparams'] = self.LFMparams
+                new_params['ICMparams'] = self.ICMparams
             self._updatemodel(new_params)
             if self.observations is not None:
                 self._mapB()
         else:
             raise LFMHMMError("reset init_type not supported.")
 
-    def set_params(self, A, pi, damper, spring, lengthscales, noise_var):
+    def set_params(self, A, pi, rbf_variances, rbf_lengthscales,
+                   B_Ws, B_kappas, noise_var):
         n = self.n
         assert A.shape == (n, n)
         assert (pi.shape == (n, 1)) or (pi.shape == (n, ))
-        assert len(damper) == len(spring) == len(lengthscales) == n
-        assert all([len(x) == self.number_outputs for x in damper])
-        assert all([len(x) == self.number_outputs for x in spring])
+        assert len(rbf_variances) == len(rbf_lengthscales) == n
+        assert B_Ws.shape == (self.n, self.number_outputs)
+        assert B_kappas.shape == (self.n, self.number_outputs)
         assert noise_var.shape == (self.number_outputs,)
-        # TODO: Assumption of sensitivities being equal to one. Make a parameter
-        sensi = np.ones((n, self.number_outputs, self.number_latent_f))
         pdict = {}
-        pdict['spring'] = spring
-        pdict['damper'] = damper
-        pdict['sensi'] = sensi
+        pdict['rbf_variances'] = rbf_variances
+        pdict['rbf_lengthscales'] = rbf_lengthscales
+        pdict['Ws'] = B_Ws
+        pdict['kappas'] = B_kappas
         pdict['noise_var'] = noise_var
-        pdict['lengthscales'] = lengthscales
-        self.LFMparams = pdict
+        self.ICMparams = pdict
         # Setting the transition matrix, the initial state PMF and the emission
         # params.
-        params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
+        params_to_set = {'A': A, 'pi': pi, 'ICMparams': self.ICMparams}
         self._updatemodel(params_to_set)
         if self.observations is not None:
                 self._mapB()
@@ -286,19 +276,18 @@ class LFMHMM(_BaseHMM):
         print "==============="
         return result.x
 
-    def _update_emission_params(self, lfms_params):
+    def _update_emission_params(self, params):
         # Notice that this function works with the packed params.
-        # Be careful because this function doesn't update self.LFMparams
+        # Be careful because this function doesn't update self.ICMparams
         # So it is expected to update it  after/before using this.
-        per_lfm = 2*self.number_outputs + \
-                  self.number_latent_f * (1 + self.number_outputs)
-        noise_params = lfms_params[per_lfm * self.n:]
+        per_hidden_state = 2 + 2*self.number_outputs
+        noise_params = params[per_hidden_state * self.n:]
         assert np.size(noise_params) == self.number_outputs
-        # updating each of the lfm's (i.e. hidden states) with the new params.
+        # updating each of the hidden states with the new params.
         for i in xrange(self.n):
-            no_noise_params = lfms_params[i * per_lfm: (i + 1) * per_lfm]
-            self.lfms[i].set_params(
-                    np.concatenate((no_noise_params, noise_params)), False)
+            icm_params = params[i*per_hidden_state: (i + 1)*per_hidden_state]
+            self.icms[i].set_params(
+                    np.concatenate((icm_params, noise_params)))
 
     def _get_bounds(self):
         tam_sensi = self.number_outputs * self.number_latent_f
@@ -322,11 +311,11 @@ class LFMHMM(_BaseHMM):
     def _updatemodel(self, new_model):
         '''
         This function updates the values of model attributes. Namely
-        self.LFMparams, self.A, self.pi and self.lfms.
+        self.ICMparams, self.A, self.pi and self.icms.
         Note that this doesn't update the probabilities B_maps
         '''
-        self.LFMparams = new_model['LFMparams']
-        packed_params = self.pack_params(self.LFMparams)
+        self.ICMparams = new_model['ICMparams']
+        packed_params = self.pack_params(self.ICMparams)
         self._update_emission_params(packed_params)
         _BaseHMM._updatemodel(self, new_model)
 

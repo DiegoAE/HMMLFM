@@ -1,5 +1,6 @@
 __author__ = 'diego'
 
+from cycler import cycler
 from hmm.continuous.ICMHMM import ICMHMM
 from matplotlib import pyplot as plt
 import numpy as np
@@ -22,7 +23,7 @@ rbf_variances = np.ones(number_hidden_states) * 2
 rbf_lengthscales = np.ones(number_hidden_states)
 B_Ws = np.ones((number_hidden_states, outputs))
 kappas = 0.5 * np.ones((number_hidden_states, outputs))
-noise_var = 0.0005 * np.ones(outputs)
+noise_var = np.array([0.005, 0.005])
 
 icm_hmm = ICMHMM(outputs, number_hidden_states, locations_per_segment, start_t,
                            end_t, verbose=True)
@@ -38,4 +39,49 @@ for k in test_unit_2.keys():
 print "Accepted!"
 
 for i in xrange(number_hidden_states):
-    print icm_hmm.icms[i].icm_kernel.B.kappa
+    print icm_hmm.icms[i].icm_kernel
+
+# Plotting
+
+fig, ax = plt.subplots()
+ax.set_prop_cycle(cycler('color', ['red', 'green']))
+
+segments = 10
+obs_1, hidden_states = icm_hmm.generate_observations(segments)
+last_value = 0
+for i in xrange(segments):
+    plt.axvline(x=last_value, color='red', linestyle='--')
+    sl = icm_hmm.sample_locations
+    current_obs = obs_1[i]
+    current_outputs = np.zeros((locations_per_segment, outputs))
+    # separating the outputs accordingly.
+    for j in xrange(outputs):
+        current_outputs[:, j] = current_obs[j::outputs]
+    plt.plot(last_value + sl - sl[0], current_outputs)
+    last_value += end_t - start_t
+plt.show()
+
+obs = []
+n_training_sequences = 10
+hidden_states = np.zeros(n_training_sequences, dtype=object)
+for i in xrange(n_training_sequences):
+    segments = np.random.randint(1, 100)
+    print "The %d-th sequence has length %d" % (i, segments)
+    output, hidden = icm_hmm.generate_observations(segments)
+    obs.append(output)
+    hidden_states[i] = hidden
+
+icm_hmm.set_observations(obs)
+icm_hmm.reset()
+
+print icm_hmm.pi
+print icm_hmm.A
+print icm_hmm.ICMparams
+
+print "start training"
+
+icm_hmm.train()
+
+print icm_hmm.pi
+print icm_hmm.A
+print icm_hmm.ICMparams

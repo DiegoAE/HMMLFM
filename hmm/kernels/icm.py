@@ -52,11 +52,13 @@ class icm():
         self.icm_kernel.B.W[:, 0] = W
         self.icm_kernel.B.kappa = kappa
 
-    def Kff(self):
-        return self.icm_kernel.K(self.X, self.X)
+    def Kff(self, X1, X2):
+        assert X1 is not None
+        assert X2 is not None
+        return self.icm_kernel.K(X1, X2)
 
     def Kyy(self):
-        K = self.Kff()
+        K = self.Kff(self.X, self.X)
         n = range(K.shape[0])
         ind = self.X[:, 1].astype(int)
         K[n, n] += self.noise_var[ind]  # Adding noise

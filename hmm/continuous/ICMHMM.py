@@ -52,7 +52,7 @@ class ICMHMM(_BaseHMM):
         self.pool = mp.Pool()
         # covariance memoization
         self.memo_covs = {}
-        self.ICMparams = {} # TODO: not sure if this will be necessary.
+        self.ICMparams = {}
         # different icms.
         self.icms = np.zeros(n, dtype='object')
         for i in xrange(n):
@@ -186,32 +186,32 @@ class ICMHMM(_BaseHMM):
         self.memo_covs[hidden_state] = cov
         return cov
 
-    # TODO: implement this.
-    # def get_cov_function_explicit(self, hidden_state, t, tp):
-    #     # Notice that the noise variance doesn't appear here.
-    #     # The noise variance only affects Ktt.
-    #     assert hidden_state < self.n
-    #     nt, ind = self.lfms[hidden_state].get_stacked_time_and_indexes(t)
-    #     ntp, indp = self.lfms[hidden_state].get_stacked_time_and_indexes(tp)
-    #     cov = self.lfms[hidden_state].Kff(nt, ind, ntp, indp)
-    #     return cov
+    def get_cov_function_explicit(self, hidden_state, t, tp):
+        # Notice that the noise variance doesn't appear here.
+        # The noise variance only affects Ktt.
+        assert hidden_state < self.n
+        Xt = self.icms[hidden_state].get_stacked_time_and_indexes(
+                t, self.number_outputs)
+        Xtp = self.icms[hidden_state].get_stacked_time_and_indexes(
+                tp, self.number_outputs)
+        cov = self.icms[hidden_state].Kff(Xt, Xtp)
+        return cov
 
-    # TODO: implement this.
-    # def predict(self, t_step, hidden_state, obs):
-    #     if self.verbose and \
-    #             (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
-    #         print "WARNING:prediction step.Time step out of the sampling region"
-    #     if hidden_state < 0 or hidden_state >= self.n:
-    #         raise LFMHMMError("ERROR: Invalid hidden state.")
-    #     obs = obs.reshape((-1, 1))
-    #     Ktt = self.get_cov_function(hidden_state)
-    #     ktstar = self.get_cov_function_explicit(
-    #             hidden_state, self.sample_locations, np.asarray(t_step))
-    #     Kstarstar = self.get_cov_function_explicit(
-    #             hidden_state, np.asarray(t_step),  np.asarray(t_step))
-    #     mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
-    #     cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
-    #     return mean_pred, cov_pred
+    def predict(self, t_step, hidden_state, obs):
+        if self.verbose and \
+                (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
+            print "WARNING:prediction step.Time step out of the sampling region"
+        if hidden_state < 0 or hidden_state >= self.n:
+            raise LFMHMMError("ERROR: Invalid hidden state.")
+        obs = obs.reshape((-1, 1))
+        Ktt = self.get_cov_function(hidden_state)
+        ktstar = self.get_cov_function_explicit(
+                hidden_state, self.sample_locations, np.asarray(t_step))
+        Kstarstar = self.get_cov_function_explicit(
+                hidden_state, np.asarray(t_step),  np.asarray(t_step))
+        mean_pred = np.dot(ktstar.T, np.linalg.solve(Ktt, obs))
+        cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
+        return mean_pred, cov_pred
 
     def _reestimateICMparams(self, gammas):
         new_ICMparams = self.optimize_hyperparams(gammas)
@@ -351,51 +351,50 @@ class ICMHMM(_BaseHMM):
                     #  This is weird.
         # print self.B_maps
 
-    # TODO: implement this.
-    # def save_params(self, dir, name):
-    #     f = file('%s/%s.param' % (dir, name), 'w')
-    #     f.write(repr(self.LFMparams) + "\n")
-    #     f.write("#\n")
-    #     f.write(repr(self.A) + "\n")
-    #     f.write("#\n")
-    #     f.write(repr(self.pi) + "\n")
-    #     f.close()
+    def save_params(self, dir, name):
+        f = file('%s/%s.param' % (dir, name), 'w')
+        f.write(repr(self.ICMparams) + "\n")
+        f.write("#\n")
+        f.write(repr(self.A) + "\n")
+        f.write("#\n")
+        f.write(repr(self.pi) + "\n")
+        f.close()
 
-    # TODO: implement this.
-    # def read_params(self, dir, name):
-    #     f = file('%s/%s.param' % (dir, name), 'r')
-    #     LFMparams_string = ""
-    #     A_string = ""
-    #     pi_string = ""
-    #     read_line = f.readline()
-    #     while not read_line.startswith("#"):
-    #         LFMparams_string += read_line
-    #         read_line = f.readline()
-    #     read_line = f.readline()
-    #     while not read_line.startswith("#"):
-    #         A_string += read_line
-    #         read_line = f.readline()
-    #     read_line = f.readline()
-    #     while read_line:
-    #         pi_string += read_line
-    #         read_line = f.readline()
-    #     f.close()
-    #     from numpy import array, nan  # required for eval to work.
-    #     model_to_set = {
-    #         'LFMparams': eval(LFMparams_string),
-    #         'A': eval(A_string),
-    #         'pi': eval(pi_string),
-    #     }
-    #     assert model_to_set['A'].shape == (self.n, self.n)
-    #     assert np.size(model_to_set['pi']) == self.n
-    #     assert model_to_set['LFMparams']['spring'].shape == \
-    #            model_to_set['LFMparams']['damper'].shape == \
-    #            (self.n, self.number_outputs)
-    #     assert model_to_set['LFMparams']['lengthscales'].shape == \
-    #            (self.n, self.number_latent_f)
-    #     assert model_to_set['LFMparams']['noise_var'].shape == \
-    #            (self.number_outputs,)
-    #     self._updatemodel(model_to_set)
-    #     if self.observations:
-    #         self._mapB()
+    def read_params(self, dir, name):
+        f = file('%s/%s.param' % (dir, name), 'r')
+        ICMparams_string = ""
+        A_string = ""
+        pi_string = ""
+        read_line = f.readline()
+        while not read_line.startswith("#"):
+            ICMparams_string += read_line
+            read_line = f.readline()
+        read_line = f.readline()
+        while not read_line.startswith("#"):
+            A_string += read_line
+            read_line = f.readline()
+        read_line = f.readline()
+        while read_line:
+            pi_string += read_line
+            read_line = f.readline()
+        f.close()
+        from numpy import array, nan  # required for eval to work.
+        model_to_set = {
+            'ICMparams': eval(ICMparams_string),
+            'A': eval(A_string),
+            'pi': eval(pi_string),
+        }
+        assert model_to_set['A'].shape == (self.n, self.n)
+        assert np.size(model_to_set['pi']) == self.n
+        assert model_to_set['ICMparams']['rbf_variances'].shape == \
+               model_to_set['ICMparams']['rbf_lengthscales'].shape == \
+               (self.n,)
+        assert model_to_set['ICMparams']['Ws'].shape ==\
+               model_to_set['ICMparams']['kappas'].shape ==\
+               (self.n, self.number_outputs)
+        assert model_to_set['ICMparams']['noise_var'].shape == \
+               (self.number_outputs,)
+        self._updatemodel(model_to_set)
+        if self.observations:
+            self._mapB()
 

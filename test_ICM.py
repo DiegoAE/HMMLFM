@@ -1,7 +1,7 @@
 __author__ = 'diego'
 
 from cycler import cycler
-from hmm.continuous.ICMHMM import ICMHMM
+from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -26,7 +26,7 @@ B_Ws = np.array([[0., 0.], [1., 1.], [1., -1.]])
 kappas = 0.5 * np.ones((number_hidden_states, outputs))
 noise_var = np.array([0.0005, 0.0005])
 
-icm_hmm = ICMHMM(outputs, number_hidden_states, locations_per_segment, start_t,
+icm_hmm = ICMHMMcontinuousMO(outputs, number_hidden_states, locations_per_segment, start_t,
                            end_t, verbose=True)
 icm_hmm.set_params(A, pi, rbf_variances, rbf_lengthscales, B_Ws, kappas,
                    noise_var)
@@ -81,12 +81,13 @@ print icm_hmm.ICMparams
 
 print "start training"
 
-train_flag = True
+train_flag = False
+file_name = "First-MO-ICM-continuous"
 if train_flag:
     icm_hmm.train()
-    icm_hmm.save_params("/home/diego/tmp/Parameters/ICM", "First-MO-ICM")
+    icm_hmm.save_params("/home/diego/tmp/Parameters/ICM", file_name)
 else:
-    icm_hmm.read_params("/home/diego/tmp/Parameters/ICM", "First-MO-ICM")
+    icm_hmm.read_params("/home/diego/tmp/Parameters/ICM", file_name)
 
 print icm_hmm.pi
 print icm_hmm.A

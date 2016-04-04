@@ -1,5 +1,6 @@
 import GPy
 from hmm.continuous.LFMHMMcontinuous import LFMHMMcontinuous
+from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -22,14 +23,14 @@ plt.plot(np.arange(nsamples), Y[:, channel_id])
 plt.show()
 
 ### LFM HMM
-number_lfm = 7
+number_lfm = 3
 outputs = 1
 start_t = 0.1
 end_t = 5.1
 locations_per_segment = 20
 n_latent_forces = 1  # TODO: currently not passing this argument to the model.
 
-lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
+lfm_hmm = ICMHMMcontinuousMO(outputs, number_lfm, locations_per_segment, start_t,
                            end_t, verbose=True)
 
 number_training_sequences = 1
@@ -49,19 +50,20 @@ lfm_hmm.set_observations(obs)
 print "before training"
 print lfm_hmm.pi
 print lfm_hmm.A
-print lfm_hmm.LFMparams
+print lfm_hmm.ICMparams
 
 train_flag = False
+file = "first-ICM-MOCAP"
 if train_flag:
     lfm_hmm.train()
-    lfm_hmm.save_params("/home/diego/tmp/Parameters/MOCAP", "pruebaMOCAP")
+    lfm_hmm.save_params("/home/diego/tmp/Parameters/MOCAP", file)
 else:
-    lfm_hmm.read_params("/home/diego/tmp/Parameters/MOCAP", "pruebaMOCAP")
+    lfm_hmm.read_params("/home/diego/tmp/Parameters/MOCAP", file)
 
 print "after training"
 print lfm_hmm.pi
 print lfm_hmm.A
-print lfm_hmm.LFMparams
+print lfm_hmm.ICMparams
 
 
 # Second experiment: Regression

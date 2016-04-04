@@ -17,14 +17,16 @@ nsamples, nfeatures = Y.shape
 print "Y's shape ", Y.shape
 
 
-channel_id = 9
+channel_ids = [9, 10]  # TODO: figure out to which part corresponds signal 10.
 
-plt.plot(np.arange(nsamples), Y[:, channel_id])
+for idx in channel_ids:
+    plt.plot(np.arange(nsamples), Y[:, idx])
+    plt.plot(np.arange(nsamples), Y[:, idx])
 plt.show()
 
 ### LFM HMM
 number_lfm = 3
-outputs = 1
+outputs = len(channel_ids)
 start_t = 0.1
 end_t = 5.1
 locations_per_segment = 20
@@ -37,12 +39,13 @@ number_training_sequences = 1
 obs = []
 for s in xrange(number_training_sequences):
     number_segments = 18  # fixed for now.
-    c_obs = np.zeros((number_segments, locations_per_segment))
-    signal = Y[:, channel_id]
-    idx = 0
-    for i in xrange(number_segments):
-        c_obs[i, :] = signal[idx:idx + locations_per_segment]
-        idx = idx + locations_per_segment - 1
+    c_obs = np.zeros((number_segments, locations_per_segment * outputs))
+    for output_id in xrange(outputs):
+        signal = Y[:, channel_ids[output_id]]
+        idx = 0
+        for i in xrange(number_segments):
+            c_obs[i, output_id::outputs] = signal[idx:idx + locations_per_segment]
+            idx = idx + locations_per_segment - 1
     obs.append(c_obs)
 
 lfm_hmm.set_observations(obs)
@@ -53,7 +56,7 @@ print lfm_hmm.A
 print lfm_hmm.ICMparams
 
 train_flag = False
-file = "first-ICM-MOCAP"
+file = "first-ICM-MOCAP-MO"
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters/MOCAP", file)
@@ -66,34 +69,45 @@ print lfm_hmm.A
 print lfm_hmm.ICMparams
 
 
-# Second experiment: Regression
+obs_1 = obs[0]
+hidden_states_1 = lfm_hmm._viterbi()[0]
+
+considered_segments = len(obs_1)
 number_testing_points = 100
-regression_hidden_states = lfm_hmm._viterbi()[0]
+# prediction
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = 18  # fixed for now.
 for i in xrange(considered_segments):
-    c_hidden_state = regression_hidden_states[i]
-    c_obv = obs[0][i]
+    c_hidden_state = hidden_states_1[i]
+    c_obv = obs_1[i]
     # predicting more time steps
     t_test = np.linspace(start_t, end_t, number_testing_points)
     mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
+    mean_pred = mean_pred.flatten()
+    cov_pred = np.diag(cov_pred)
+
+    current_outputs = np.zeros((number_testing_points, outputs))
+    current_covariances = np.zeros((number_testing_points, outputs))
+    # separating the outputs accordingly.
+    for j in xrange(outputs):
+        current_outputs[:, j] = mean_pred[j::outputs]
+        current_covariances[:, j] = cov_pred[j::outputs]
+
     sl = lfm_hmm.sample_locations
-    plt.scatter(last_value + sl - sl[0], c_obv, facecolors='none',
-                label=[None, 'observations'][i == 0])
-    plt.plot(last_value + t_test - t_test[0], mean_pred, color='green',
+    for j in xrange(outputs):
+        plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
+                    facecolors='none', label=[None, 'observations'][i == 0])
+
+    plt.plot(last_value + t_test - t_test[0], current_outputs, color='green',
              label=[None, 'predicted mean'][i == 0])
     diag_cov = np.diag(cov_pred)
-    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() - 2 * np.sqrt(diag_cov), 'k--')
-    plt.plot(last_value + t_test - t_test[0], mean_pred.flatten() + 2 * np.sqrt(diag_cov), 'k--')
+    plt.plot(last_value + t_test - t_test[0],
+             current_outputs - 2 * np.sqrt(current_covariances), 'k--')
+    plt.plot(last_value + t_test - t_test[0],
+             current_outputs + 2 * np.sqrt(current_covariances), 'k--')
     last_value = last_value + end_t - start_t
     plt.axvline(x=last_value, color='red', linestyle='--')
-
-
-print "Inferred hidden states ", regression_hidden_states
-
-plt.title("Fitting of the model given an observation sequence.")
-plt.legend(loc='upper left')
 plt.show()
 
+print "Inferred hidden states ", hidden_states_1
 print "USED SEED", seed

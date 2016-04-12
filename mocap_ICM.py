@@ -5,40 +5,37 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 seed = np.random.random_integers(10000)
-seed = 4748
 np.random.seed(seed)
 
 print "Using GPy version: ", GPy.__version__
 
-data = GPy.util.datasets.cmu_mocap('43', ['01'], sample_every=1)
+data = GPy.util.datasets.cmu_mocap('05', ['20'], sample_every=1)
 print data['info']
-Y = data['Y'][70:, :]
+Y = data['Y']
 nsamples, nfeatures = Y.shape
 print "Y's shape ", Y.shape
 
 
-channel_ids = [9, 10]  # TODO: figure out to which part corresponds signal 10.
+channel_ids = [9, 16]  # ltibia and rtibia
 
 for idx in channel_ids:
     plt.plot(np.arange(nsamples), Y[:, idx])
-    plt.plot(np.arange(nsamples), Y[:, idx])
 plt.show()
 
-### LFM HMM
-number_lfm = 3
+number_hidden_states = 3
 outputs = len(channel_ids)
 start_t = 0.1
 end_t = 5.1
 locations_per_segment = 20
 n_latent_forces = 1  # TODO: currently not passing this argument to the model.
 
-lfm_hmm = ICMHMMcontinuousMO(outputs, number_lfm, locations_per_segment, start_t,
+lfm_hmm = ICMHMMcontinuousMO(outputs, number_hidden_states, locations_per_segment, start_t,
                            end_t, verbose=True)
 
 number_training_sequences = 1
 obs = []
 for s in xrange(number_training_sequences):
-    number_segments = 18  # fixed for now.
+    number_segments = 55  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment * outputs))
     for output_id in xrange(outputs):
         signal = Y[:, channel_ids[output_id]]
@@ -56,7 +53,7 @@ print lfm_hmm.A
 print lfm_hmm.ICMparams
 
 train_flag = False
-file = "first-ICM-MOCAP-MO"
+file = "second-ICM-MOCAP-MO"
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters/MOCAP", file)

@@ -122,7 +122,7 @@ class _BaseHMM(object):
         # similar to the forward-backward algorithm.
         # For now this method RESETS the input and B_map if input is provided.
 
-        if observations:
+        if observations is not None:
             self.set_observations(observations)
 
         output = numpy.zeros(self.B_maps.shape[0], dtype=object)
@@ -399,7 +399,10 @@ class _BaseHMM(object):
 
     def set_observations(self, observations):
         if type(observations) is not list:
-            raise TypeError("Expecting a list of observations as input.")
+            if not (type(observations) == numpy.ndarray and
+                            observations.ndim == 1):
+                raise TypeError("Expecting an iterable array/list"
+                                "of observations as input.")
         self.observations = observations
         self._mapB()
 

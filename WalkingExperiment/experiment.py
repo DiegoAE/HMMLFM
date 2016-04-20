@@ -1,20 +1,35 @@
 from hmm.continuous.LFMHMMcontinuousMO import LFMHMMcontinuousMO
+from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
 from matplotlib import pyplot as plt
 import numpy as np
 
 
 seed = np.random.random_integers(100000)
-seed = 47859
+seed = 79861  # LFM
+# seed = 8629  # ICM
 np.random.seed(seed)
 print "USED SEED", seed
 
 
+def just_one_output(input, noutputs):
+    output = input.copy()
+    output_idx = 0
+    for i in xrange(len(output)):
+        output[i] = output[i][:, output_idx::noutputs]
+    return output
+
+
 input_file = file('mocap_walking_subject_07.npz', 'rb')
 data = np.load(input_file)
+outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
-outputs = data['outputs']
 locations_per_segment = data['lps']
+# One output trick
+training_observations = just_one_output(training_observations, outputs)
+testing_observations = just_one_output(testing_observations, outputs)
+outputs = 1
+#
 
 number_lfm = 3
 start_t = 0.1
@@ -34,9 +49,9 @@ print "start training"
 train_flag = False
 if train_flag:
     model.train()
-    model.save_params("/home/diego/tmp/Parameters/WALKING", "MOToy")
+    model.save_params("/home/diego/tmp/Parameters/WALKING", "SO_LFM_Toy")
 else:
-    model.read_params("/home/diego/tmp/Parameters/WALKING", "MOToy")
+    model.read_params("/home/diego/tmp/Parameters/WALKING", "SO_LFM_Toy")
 
 
 print "after training"
@@ -47,11 +62,14 @@ print model.LFMparams
 print "USED SEED", seed
 
 viterbi_training =  model._viterbi()
+print "Viterbi"
 print viterbi_training
 
 # Testing data
 
-# print model._viterbi(testing_observations)
+viterbi_testing = model._viterbi(testing_observations)
+print "Viterbi for testing"
+print viterbi_testing
 
 # Looking at the resulting fit
 
@@ -59,14 +77,15 @@ print viterbi_training
 number_testing_points = 100
 
 colors_cycle = ['red', 'green', 'blue', 'purple']
-regression_hidden_states = viterbi_training[0]
+regression_hidden_states = viterbi_testing[0]
+print regression_hidden_states
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = training_observations[0].shape[0]
+considered_segments = testing_observations[0].shape[0]
 print considered_segments
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
-    c_obv = training_observations[0][i]
+    c_obv = testing_observations[0][i]
     # predicting more time steps
     t_test = np.linspace(start_t, end_t, number_testing_points)
     mean_pred, cov_pred = model.predict(t_test, c_hidden_state, c_obv)

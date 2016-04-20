@@ -40,6 +40,18 @@ if animation_flag:
 
 locations_per_segment = 20
 
+# Scaling the original signal to be between -1 and 1.
+
+max_value = 0
+for i in xrange(len(motions_for_training)):
+    Y = data[i]
+    max_value = max(max_value, np.abs(Y).max())
+
+for i in xrange(len(motions_for_training)):
+    data[i] *= (1.0/max_value)
+
+# end scaling
+
 plt.figure(1)
 for i in xrange(len(motions_for_training)):
     plt.subplot(len(motions_for_training), 1, i + 1)

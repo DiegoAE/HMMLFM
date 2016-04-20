@@ -5,7 +5,8 @@ from matplotlib import pyplot as plt
 from scipy import stats
 import numpy as np
 
-seed = np.random.random_integers(10000)
+seed = np.random.random_integers(100000)
+seed = 75599
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -23,6 +24,8 @@ locations_per_segment = 20
 # list of lists in case of multiple outputs
 damper_constants = np.asarray([[1., 3., 7.5], [3., 1, 0.5], [6., 5., 4.]])
 spring_constants = np.asarray([[3., 1, 2.5], [1., 3, 9.0], [5., 6., 4.5]])
+# damper_constants = np.random.rand(number_lfm, outputs) * 10.0
+# spring_constants = np.random.rand(number_lfm, outputs) * 10.0
 # implicitly assuming there is only one latent force governing the system.
 lengthscales = np.asarray([[10.], [10.], [10.]])
 # it seems to be quite problematic when you choose big lenghtscales
@@ -38,7 +41,7 @@ fig, ax = plt.subplots()
 ax.set_prop_cycle(cycler('color', ['red', 'green', 'blue']))
 
 segments = 10
-obs_1, hidden_states = lfm_hmm.generate_observations(segments)
+obs_1, hidden_states_obs1 = lfm_hmm.generate_observations(segments)
 last_value = 0
 for i in xrange(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
@@ -71,7 +74,7 @@ print lfm_hmm.LFMparams
 
 print "start training"
 
-train_flag = True
+train_flag = False
 if train_flag:
     lfm_hmm.train()
     lfm_hmm.save_params("/home/diego/tmp/Parameters", "FirstMOToy")
@@ -84,41 +87,46 @@ print lfm_hmm.pi
 print lfm_hmm.A
 print lfm_hmm.LFMparams
 
+print "USED SEED", seed
 
+regression_observation = obs[0]
+regression_hidden_states = lfm_hmm._viterbi()[0]
 
-# considered_segments = len(obs_1)
-# number_testing_points = 100
-# # prediction
-# last_value = 0
-# plt.axvline(x=last_value, color='red', linestyle='--')
-# for i in xrange(considered_segments):
-#     c_hidden_state = hidden_states[i]
-#     c_obv = obs_1[i]
-#     # predicting more time steps
-#     t_test = np.linspace(start_t, end_t, number_testing_points)
-#     mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
-#     mean_pred = mean_pred.flatten()
-#     cov_pred = np.diag(cov_pred)
-#
-#     current_outputs = np.zeros((number_testing_points, outputs))
-#     current_covariances = np.zeros((number_testing_points, outputs))
-#     # separating the outputs accordingly.
-#     for j in xrange(outputs):
-#         current_outputs[:, j] = mean_pred[j::outputs]
-#         current_covariances[:, j] = cov_pred[j::outputs]
-#
-#     sl = lfm_hmm.sample_locations
-#     for j in xrange(outputs):
-#         plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
-#                     facecolors='none', label=[None, 'observations'][i == 0])
-#
-#     plt.plot(last_value + t_test - t_test[0], current_outputs, color='green',
-#              label=[None, 'predicted mean'][i == 0])
-#     diag_cov = np.diag(cov_pred)
-#     plt.plot(last_value + t_test - t_test[0],
-#              current_outputs - 2 * np.sqrt(current_covariances), 'k--')
-#     plt.plot(last_value + t_test - t_test[0],
-#              current_outputs + 2 * np.sqrt(current_covariances), 'k--')
-#     last_value = last_value + end_t - start_t
-#     plt.axvline(x=last_value, color='red', linestyle='--')
-# plt.show()
+print repr(regression_hidden_states)
+
+considered_segments = min(10, len(regression_observation))
+number_testing_points = 100
+# prediction
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+for i in xrange(considered_segments):
+    c_hidden_state = regression_hidden_states[i]
+    c_obv = regression_observation[i]
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, number_testing_points)
+    mean_pred, cov_pred = lfm_hmm.predict(t_test, c_hidden_state, c_obv)
+    mean_pred = mean_pred.flatten()
+    cov_pred = np.diag(cov_pred)
+
+    current_outputs = np.zeros((number_testing_points, outputs))
+    current_covariances = np.zeros((number_testing_points, outputs))
+    # separating the outputs accordingly.
+    for j in xrange(outputs):
+        current_outputs[:, j] = mean_pred[j::outputs]
+        current_covariances[:, j] = cov_pred[j::outputs]
+
+    sl = lfm_hmm.sample_locations
+    for j in xrange(outputs):
+        plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
+                    facecolors='none', label=[None, 'observations'][i == 0])
+
+    plt.plot(last_value + t_test - t_test[0], current_outputs, color='green',
+             label=[None, 'predicted mean'][i == 0])
+    diag_cov = np.diag(cov_pred)
+    plt.plot(last_value + t_test - t_test[0],
+             current_outputs - 2 * np.sqrt(current_covariances), 'k--')
+    plt.plot(last_value + t_test - t_test[0],
+             current_outputs + 2 * np.sqrt(current_covariances), 'k--')
+    last_value = last_value + end_t - start_t
+    plt.axvline(x=last_value, color='red', linestyle='--')
+plt.show()

@@ -40,6 +40,7 @@ class LFMHMM(_BaseHMM):
         assert n > 0
         assert locations_per_segment > 0
         assert number_outputs > 0
+        assert type(number_outputs) is type(1)
         self.n = n  # number of hidden states
         self.number_outputs = number_outputs
         self.start_t = start_t
@@ -130,10 +131,12 @@ class LFMHMM(_BaseHMM):
                         self.n, self.number_outputs) * 2.
                 LFMparams['lengthscales'] = np.random.rand(
                         self.n, self.number_latent_f) * 2.
-                LFMparams['sensi'] = np.random.randn(
-                        self.n, self.number_outputs, self.number_latent_f)
+                LFMparams['sensi'] = np.ones(
+                        (self.n, self.number_outputs, self.number_latent_f))
+                # LFMparams['sensi'] = np.random.randn(
+                #         self.n, self.number_outputs, self.number_latent_f)
                 # Assuming different noises for each output.
-                LFMparams['noise_var'] = np.array([1e2] * self.number_outputs)
+                LFMparams['noise_var'] = np.ones(self.number_outputs) * 100.
                 new_params['LFMparams'] = LFMparams
             else:
                 new_params['LFMparams'] = self.LFMparams
@@ -153,6 +156,7 @@ class LFMHMM(_BaseHMM):
         assert noise_var.shape == (self.number_outputs,)
         # TODO: Assumption of sensitivities being equal to one. Make a parameter
         sensi = np.ones((n, self.number_outputs, self.number_latent_f))
+        # sensi = np.random.randn(n, self.number_outputs, self.number_latent_f)
         pdict = {}
         pdict['spring'] = spring
         pdict['damper'] = damper
@@ -165,7 +169,7 @@ class LFMHMM(_BaseHMM):
         params_to_set = {'A': A, 'pi': pi, 'LFMparams': self.LFMparams}
         self._updatemodel(params_to_set)
         if self.observations is not None:
-                self._mapB()
+            self._mapB()
 
     def generate_observations(self, segments, hidden_s=None):
         output = np.zeros((segments,
@@ -210,7 +214,7 @@ class LFMHMM(_BaseHMM):
                 (np.any(t_step < self.start_t) or np.any(t_step > self.end_t)):
             print "WARNING:prediction step.Time step out of the sampling region"
         if hidden_state < 0 or hidden_state >= self.n:
-            raise LFMHMMError("ERROR: Invalid hidden state.")
+            raise LFMHMMError("ERROR: Invalid lfm state -> %d." % hidden_state)
         obs = obs.reshape((-1, 1))
         Ktt = self.get_cov_function(hidden_state)
         ktstar = self.get_cov_function_explicit(
@@ -303,7 +307,7 @@ class LFMHMM(_BaseHMM):
     def _get_bounds(self):
         tam_sensi = self.number_outputs * self.number_latent_f
         upper = 10000.0
-        lower = 1e-8
+        lower = 0.0005
         bounds = []
         for i in xrange(self.n):
             f = [(lower, upper)] * (2 * self.number_outputs)  # spring & damper.
@@ -329,15 +333,16 @@ class LFMHMM(_BaseHMM):
         packed_params = self.pack_params(self.LFMparams)
         self._update_emission_params(packed_params)
         _BaseHMM._updatemodel(self, new_model)
+        # erasing the covariances cache since the parameters were updated.
+        self.memo_covs = {}
 
     def _mapB(self):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         '''
-        # Erasing the covariance cache here. Should I do the same in other
-        # places ?
+        # Erasing the covariance cache here. Should I do this here?
         self.memo_covs = {}
-        if not self.observations:
+        if self.observations is None:
             raise LFMHMMError("The training sequences haven't been set.")
 
         numbers_of_sequences = len(self.observations)
@@ -355,7 +360,6 @@ class LFMHMM(_BaseHMM):
             number_of_segments = len(self.observations[j])
             for i in xrange(self.n):
                 cov = self.get_cov_function(i)
-                # print "cond:", np.linalg.cond(cov)
                 for t in xrange(number_of_segments):
                     self.B_maps[j][i][t] = stats.multivariate_normal.pdf(
                             self.observations[j][t], np.zeros(cov.shape[0]),
@@ -406,6 +410,5 @@ class LFMHMM(_BaseHMM):
         assert model_to_set['LFMparams']['noise_var'].shape == \
                (self.number_outputs,)
         self._updatemodel(model_to_set)
-        if self.observations:
+        if self.observations is not None:
             self._mapB()
-

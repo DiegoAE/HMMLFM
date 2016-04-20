@@ -86,20 +86,21 @@ class lfm2():
         return K
 
     def Kff(self, t, index, tp=None, indexp=None):
-        other = t
-        if tp is not None:
-            assert indexp is not None
-            other = tp
-        K = np.zeros((t.size, other.size))
-        for q in range(self.Q):
-            K += (self.S[index, q]*self.S[indexp, q].T) *\
-                 self.Kff_q(self.l[q], t, index, tp, indexp)
-        return K
-
-    def Kff_q(self,lq,t,index,tp=None,indexp=None):
+        index = index.flatten()
         if tp is None:
+            assert indexp is None
             tp = t.copy()
             indexp = index.copy()
+        indexp = indexp.flatten()
+        K = np.zeros((t.size, tp.size))
+        for q in range(self.Q):
+            sensi_factors = self.S[index, q, np.newaxis] * self.S[indexp, q]
+            kff_q = self.Kff_q(self.l[q], t, index, tp, indexp)
+            assert sensi_factors.shape == kff_q.shape
+            K += sensi_factors * kff_q
+        return K
+
+    def Kff_q(self,lq,t,index,tp,indexp):
 
         def hnew(gam1, gam2, gam3, t, tp, wofznu, nu, nu2):
             c1_1 = 1./(gam2 + gam1)
@@ -152,7 +153,9 @@ class lfm2():
                 - ec*( temp2 \
                 - np.exp(np.log(wofznu) - gam1tp))
 
-        indexp = indexp.reshape((1,indexp.size))
+        # Making explicit the shapes this function needs.
+        index = index.reshape(-1, 1)
+        indexp = indexp.reshape(1, -1)
         alpha = self.C/2.
         w = np.sqrt(4.*self.B - self.C*self.C + 0j)/2.
         wbool = self.C*self.C>4.*self.B
@@ -214,19 +217,19 @@ class lfm2():
         var = np.diag(kfsfs) - (kfsf.T*np.linalg.solve(self.K, kfsf.T)).sum(0)
         return ms, var
 
-    def plot_predict(self,ts, inds):
-        ms, var = self.predict(ts, inds)
-        print var.min()
-        #var = np.diag(Kysys)
-        f, axarr = plt.subplots(self.D, sharex=True)
-        for k in range(self.D):
-            indexk = (self.ind == k).reshape((self.ind.size,))
-            axarr[k].plot(self.t[indexk], self.y[indexk],'k+', markersize=7, linewidth=3)
-            indexk = (inds == k).reshape((inds.size,))
-            axarr[k].plot(ts[indexk], ms[indexk],'-k', markersize=7, linewidth=3)
-            axarr[k].plot(ts[indexk], ms[indexk] - 2.*np.sqrt(var[indexk] ),'--k')
-            axarr[k].plot(ts[indexk], ms[indexk] + 2.*np.sqrt(var[indexk] ),'--k')
-	plt.show()
+    # def plot_predict(self,ts, inds):
+    #     ms, var = self.predict(ts, inds)
+    #     print var.min()
+    #     #var = np.diag(Kysys)
+    #     f, axarr = plt.subplots(self.D, sharex=True)
+    #     for k in range(self.D):
+    #         indexk = (self.ind == k).reshape((self.ind.size,))
+    #         axarr[k].plot(self.t[indexk], self.y[indexk],'k+', markersize=7, linewidth=3)
+    #         indexk = (inds == k).reshape((inds.size,))
+    #         axarr[k].plot(ts[indexk], ms[indexk],'-k', markersize=7, linewidth=3)
+    #         axarr[k].plot(ts[indexk], ms[indexk] - 2.*np.sqrt(var[indexk] ),'--k')
+    #         axarr[k].plot(ts[indexk], ms[indexk] + 2.*np.sqrt(var[indexk] ),'--k')
+	 #    plt.show()
 
     def lfm_LL_fn(self, p ):
         self.set_params( p )
@@ -243,46 +246,54 @@ class lfm2():
         print results.fun
         self.set_params(results.x)
 
-
-if __name__ == "__main__":
-    from matplotlib import pyplot as plt
-    #Simulation
-
-    #System's parameters
-    lq=[1.]
-    B=[5.,1.]
-    C=[3.,3.]
-    S=[[1.],[1.]]
-    Q=1
-    D=2
-    t=[0]*D
-    tt = [0]*D
-    y = [0.]*D
-    #Simulation
-    def calc_deri(yvec, time, nuc, omc,s):
-        return (yvec[1], 1.*s -nuc * yvec[1] - omc * yvec[0])
-    t2 = np.linspace(0., 10., 100)
-    for d in range(D):
-        nu_c = C[d]
-        om_c = B[d]
-        yarr = integrate.odeint(calc_deri, (0, 0), t2, args=(nu_c, om_c, S[d][0]))
-        y[d] = np.asarray(yarr[:,0]).T + 0.01*np.random.randn(np.size(t2))
+    def debug(self):
+        discriminant = self.C * self.C - 4.0 * self.B
+        print "===== LFM ======="
+        print discriminant
+        print "================="
 
 
-    t2 = t2.reshape((t2.size,))
-    index = np.array([np.zeros((1,t2.size),dtype = np.int8), np.ones((1,t2.size), dtype=np.int8)])
-    index = index.reshape((index.size,1))
 
-    t = np.asarray(np.append(t2,t2))
-    y = np.asarray(np.append(y[0],y[1]))
-
-
-    #LFM model creation
-    lfm=lfm2(Q,2)
-    lfm.set_inputs(t, index)
-    lfm.set_outputs(y)
-    paraini = lfm.params
-    # Optimize hyperparameters
-    #params=np.concatenate((np.log(B),np.log(C),np.hstack(S),np.log(lq),np.log([100, 100])))
-    lfm.Optimize()
-    lfm.plot_predict(t, index)
+# if __name__ == "__main__":
+#     # THIS DEMO IS NOT WORKING.
+#     from matplotlib import pyplot as plt
+#     #Simulation
+#
+#     #System's parameters
+#     lq=[1.]
+#     B=[5.,1.]
+#     C=[3.,3.]
+#     S=[[1.],[1.]]
+#     Q=1
+#     D=2
+#     t=[0]*D
+#     tt = [0]*D
+#     y = [0.]*D
+#     #Simulation
+#     def calc_deri(yvec, time, nuc, omc,s):
+#         return (yvec[1], 1.*s -nuc * yvec[1] - omc * yvec[0])
+#     t2 = np.linspace(0., 10., 100)
+#     for d in range(D):
+#         nu_c = C[d]
+#         om_c = B[d]
+#         yarr = integrate.odeint(calc_deri, (0, 0), t2, args=(nu_c, om_c, S[d][0]))
+#         y[d] = np.asarray(yarr[:,0]).T + 0.01*np.random.randn(np.size(t2))
+#
+#
+#     t2 = t2.reshape((t2.size,))
+#     index = np.array([np.zeros((1,t2.size),dtype = np.int8), np.ones((1,t2.size), dtype=np.int8)])
+#     index = index.reshape((index.size,1))
+#
+#     t = np.asarray(np.append(t2,t2))
+#     y = np.asarray(np.append(y[0],y[1]))
+#
+#
+#     #LFM model creation
+#     lfm=lfm2(Q,2)
+#     lfm.set_inputs(t, index)
+#     lfm.set_outputs(y)
+#     paraini = lfm.params
+#     # Optimize hyperparameters
+#     #params=np.concatenate((np.log(B),np.log(C),np.hstack(S),np.log(lq),np.log([100, 100])))
+#     lfm.Optimize()
+#     lfm.plot_predict(t, index)

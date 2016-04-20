@@ -130,13 +130,13 @@ class _BaseHMM(object):
             assert len(self.B_maps[s]) > 0
             n_observations = len(self.B_maps[s][0])
             delta = numpy.zeros((n_observations, self.n), dtype=self.precision)
-            psi = numpy.zeros((n_observations, self.n), dtype=self.precision)
+            delta += -numpy.inf
+            psi = -numpy.ones((n_observations, self.n), dtype=numpy.int)
 
             # init
             for x in xrange(self.n):
                 delta[0][x] = numpy.log(self.pi[x]) + numpy.log(
                     self.B_maps[s][x][0])
-                psi[0][x] = 0
 
             # induction
             for t in xrange(1, n_observations):
@@ -163,6 +163,7 @@ class _BaseHMM(object):
             for i in xrange(1, n_observations):
                 path[n_observations-i-1] = \
                     psi[n_observations-i][path[n_observations-i]]
+            assert path.min() >= 0
             output[s] = path
         return output
 

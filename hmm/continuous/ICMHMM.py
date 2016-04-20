@@ -41,6 +41,7 @@ class ICMHMM(_BaseHMM):
         assert n > 0
         assert locations_per_segment > 0
         assert number_outputs > 0
+        assert type(number_outputs) is type(1)
         self.n = n  # number of hidden states
         self.number_outputs = number_outputs
         self.start_t = start_t
@@ -124,7 +125,7 @@ class ICMHMM(_BaseHMM):
                 ICMparams['Ws'] = np.random.randn(self.n, self.number_outputs)
                 ICMparams['kappas'] = 0.5*np.ones((self.n, self.number_outputs))
                 # Assuming different noises for each output.
-                ICMparams['noise_var'] = np.array([1e2] * self.number_outputs)
+                ICMparams['noise_var'] = np.ones(self.number_outputs) * 100.
                 new_params['ICMparams'] = ICMparams
             else:
                 new_params['ICMparams'] = self.ICMparams
@@ -296,7 +297,7 @@ class ICMHMM(_BaseHMM):
         bounds = []
         for i in xrange(self.n):
             f = [(lower, None)] * 2  # rbf variance & length-scale.
-            s = [(None, None)] * self.number_outputs # W bounds.
+            s = [(None, None)] * self.number_outputs  # W bounds.
             t = [(lower, None)] * self.number_outputs  # kappa bounds.
             bounds.extend(f)
             bounds.extend(s)
@@ -325,7 +326,7 @@ class ICMHMM(_BaseHMM):
         # Erasing the covariance cache here. Should I do the same in other
         # places ?
         self.memo_covs = {}
-        if not self.observations:
+        if self.observations is None:
             raise LFMHMMError("The training sequences haven't been set.")
 
         numbers_of_sequences = len(self.observations)
@@ -395,6 +396,6 @@ class ICMHMM(_BaseHMM):
         assert model_to_set['ICMparams']['noise_var'].shape == \
                (self.number_outputs,)
         self._updatemodel(model_to_set)
-        if self.observations:
+        if self.observations is not None:
             self._mapB()
 

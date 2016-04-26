@@ -13,29 +13,31 @@ print "USED SEED", seed
 
 def just_one_output(input, noutputs):
     output = input.copy()
-    output_idx = 0
+    output_idx = 0  # actual output of interest.
     for i in xrange(len(output)):
         output[i] = output[i][:, output_idx::noutputs]
     return output
 
 
 input_file = file('mocap_walking_subject_07.npz', 'rb')
+#input_file = file('toy_lfm.npz', 'rb')
 data = np.load(input_file)
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
 locations_per_segment = data['lps']
 # One output trick
-training_observations = just_one_output(training_observations, outputs)
-testing_observations = just_one_output(testing_observations, outputs)
-outputs = 1
+# training_observations = just_one_output(training_observations, outputs)
+# testing_observations = just_one_output(testing_observations, outputs)
+# outputs = 1
 #
 
 number_lfm = 3
+number_latent_forces = 3
 start_t = 0.1
 end_t = 5.1
 model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
-                             start_t, end_t, verbose=True)
+                             start_t, end_t, number_latent_forces, verbose=True)
 
 model.set_observations(training_observations)
 
@@ -47,11 +49,12 @@ print model.LFMparams
 print "start training"
 
 train_flag = False
+file_name = "MO_MOCAP_3_forces"
 if train_flag:
     model.train()
-    model.save_params("/home/diego/tmp/Parameters/WALKING", "SO_LFM_Toy")
+    model.save_params("/home/diego/tmp/Parameters/WALKING", file_name)
 else:
-    model.read_params("/home/diego/tmp/Parameters/WALKING", "SO_LFM_Toy")
+    model.read_params("/home/diego/tmp/Parameters/WALKING", file_name)
 
 
 print "after training"
@@ -76,16 +79,17 @@ print viterbi_testing
 
 number_testing_points = 100
 
+considered_idx = 0
 colors_cycle = ['red', 'green', 'blue', 'purple']
-regression_hidden_states = viterbi_testing[0]
-print regression_hidden_states
+regression_hidden_states = viterbi_testing[considered_idx]
+# print regression_hidden_states
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-considered_segments = testing_observations[0].shape[0]
-print considered_segments
+considered_segments = testing_observations[considered_idx].shape[0]
+# print considered_segments
 for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
-    c_obv = testing_observations[0][i]
+    c_obv = testing_observations[considered_idx][i]
     # predicting more time steps
     t_test = np.linspace(start_t, end_t, number_testing_points)
     mean_pred, cov_pred = model.predict(t_test, c_hidden_state, c_obv)
@@ -122,5 +126,22 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 plt.show()
 
-
-
+# # This is only useful for synthetic experiments.
+# def f(a):
+#     if a == 0:
+#         return 1
+#     if a == 1:
+#         return 0
+#     return 2
+#
+# TMP = data['training_viterbi']
+#
+# print "Training Vit"
+# for x in TMP:
+#     print map(f, x)
+#
+# TMP = data['testing_viterbi']
+#
+# print "Testing Vit"
+# for x in TMP:
+#     print map(f, x)

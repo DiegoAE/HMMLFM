@@ -36,7 +36,7 @@ def _parallel_hyperparameter_objective(tup):
 class LFMHMM(_BaseHMM):
 
     def __init__(self, number_outputs, n, locations_per_segment, start_t, end_t,
-                 precision=np.double, verbose=False):
+                 number_latent_forces=1, precision=np.double, verbose=False):
         assert n > 0
         assert locations_per_segment > 0
         assert number_outputs > 0
@@ -52,8 +52,7 @@ class LFMHMM(_BaseHMM):
         self.pool = mp.Pool()
         # covariance memoization
         self.memo_covs = {}
-        # TODO: make the number of latent forces a parameter.
-        self.number_latent_f = 1
+        self.number_latent_f = number_latent_forces
         # initially not LFM params.
         self.LFMparams = {}
         # Latent Force Model objects
@@ -150,7 +149,8 @@ class LFMHMM(_BaseHMM):
         n = self.n
         assert A.shape == (n, n)
         assert (pi.shape == (n, 1)) or (pi.shape == (n, ))
-        assert len(damper) == len(spring) == len(lengthscales) == n
+        assert len(damper) == len(spring) == n
+        assert lengthscales.shape == (self.n, self.number_latent_f)
         assert all([len(x) == self.number_outputs for x in damper])
         assert all([len(x) == self.number_outputs for x in spring])
         assert noise_var.shape == (self.number_outputs,)
@@ -297,6 +297,7 @@ class LFMHMM(_BaseHMM):
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
         noise_params = lfms_params[per_lfm * self.n:]
+        # noise_params = np.ones(self.number_outputs) * 0.005
         assert np.size(noise_params) == self.number_outputs
         # updating each of the lfm's (i.e. hidden states) with the new params.
         for i in xrange(self.n):

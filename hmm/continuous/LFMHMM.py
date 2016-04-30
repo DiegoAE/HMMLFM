@@ -294,6 +294,7 @@ class LFMHMM(_BaseHMM):
         # Notice that this function works with the packed params.
         # Be careful because this function doesn't update self.LFMparams
         # So it is expected to update it  after/before using this.
+        # Be careful of not modifying lfm_params in place.
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)
         noise_params = lfms_params[per_lfm * self.n:]

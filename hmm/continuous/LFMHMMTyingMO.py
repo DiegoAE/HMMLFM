@@ -17,6 +17,7 @@ class LFMHMMTyingMO(LFMHMMcontinuousMO):
             assert (spring == spring[0]).all(), "The springs must be equal."
 
     def _update_emission_params(self, input_params):
+        # it is important to not modifying input_params in place.
         lfms_params = input_params.copy()
         per_lfm = 2*self.number_outputs + \
                   self.number_latent_f * (1 + self.number_outputs)

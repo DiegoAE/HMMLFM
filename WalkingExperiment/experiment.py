@@ -1,5 +1,6 @@
 from hmm.continuous.LFMHMMcontinuousMO import LFMHMMcontinuousMO
 from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
+from hmm.continuous.LFMHMMTyingMO import LFMHMMTyingMO
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -10,25 +11,27 @@ seed = 79861  # LFM
 np.random.seed(seed)
 print "USED SEED", seed
 
-
-def just_one_output(input, noutputs):
+def pick_outputs(input, noutputs, required_outputs):
     output = input.copy()
-    output_idx = 0  # actual output of interest.
     for i in xrange(len(output)):
-        output[i] = output[i][:, output_idx::noutputs]
+        output_idx = []
+        total_cols = output[i].shape[1]
+        for idx in required_outputs:
+            output_idx.extend(range(idx, total_cols, noutputs))
+        output_idx.sort()
+        output[i] = output[i][:, output_idx]
     return output
 
-
 input_file = file('mocap_walking_subject_07.npz', 'rb')
-#input_file = file('toy_lfm.npz', 'rb')
+# input_file = file('toy_lfm.npz', 'rb')
 data = np.load(input_file)
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
 locations_per_segment = data['lps']
-# One output trick
-# training_observations = just_one_output(training_observations, outputs)
-# testing_observations = just_one_output(testing_observations, outputs)
+# Picking outputs
+# training_observations = pick_outputs(training_observations, outputs, [0])
+# testing_observations = pick_outputs(testing_observations, outputs, [0])
 # outputs = 1
 #
 
@@ -39,8 +42,25 @@ end_t = 5.1
 model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
                              start_t, end_t, number_latent_forces, verbose=True)
 
-model.set_observations(training_observations)
+colors_cycle = ['red', 'green', 'blue', 'purple']
+# Plotting the inputs
+# considered_idx = 0
+# last_value = 0
+# plt.axvline(x=last_value, color='red', linestyle='--')
+# for i in xrange(len(training_observations[considered_idx])):
+#     c_obv = training_observations[considered_idx][i]
+#     obs_plotting_locations = last_value + np.linspace(
+#             0, model.locations_per_segment - 1, model.locations_per_segment)
+#     for j in xrange(outputs):
+#         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
+#                     color=colors_cycle[j])
+#     last_value = last_value + model.locations_per_segment - 1
+#     plt.axvline(x=last_value, color='red', linestyle='--')
+# plt.show()
+# end plotting
 
+model.set_observations(training_observations)
+# model.read_params("/home/diego/tmp/Parameters/WALKING", "MANUAL_INIT")
 
 print model.pi
 print model.A
@@ -48,7 +68,7 @@ print model.LFMparams
 
 print "start training"
 
-train_flag = False
+train_flag = True
 file_name = "MO_MOCAP_3_forces"
 if train_flag:
     model.train()
@@ -80,7 +100,6 @@ print viterbi_testing
 number_testing_points = 100
 
 considered_idx = 0
-colors_cycle = ['red', 'green', 'blue', 'purple']
 regression_hidden_states = viterbi_testing[considered_idx]
 # print regression_hidden_states
 last_value = 0

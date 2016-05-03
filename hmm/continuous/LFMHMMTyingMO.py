@@ -31,6 +31,7 @@ class LFMHMMTyingMO(LFMHMMcontinuousMO):
                 reference[:2*self.number_outputs]
         super(LFMHMMTyingMO, self)._update_emission_params(lfms_params)
 
+    # TODO: verify that the parameters are tied in read_params.
     def _reestimateLFMparams(self, gammas):
         LFMparams = super(LFMHMMTyingMO, self)._reestimateLFMparams(gammas)
         # ensuring consistency in the parameters

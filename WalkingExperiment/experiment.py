@@ -36,7 +36,7 @@ locations_per_segment = data['lps']
 #
 
 number_lfm = 3
-number_latent_forces = 3
+number_latent_forces = 4
 start_t = 0.1
 end_t = 5.1
 model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
@@ -69,7 +69,7 @@ print model.LFMparams
 print "start training"
 
 train_flag = True
-file_name = "MO_MOCAP_3_forces"
+file_name = "MO_MOCAP_4_forces_3_hs"
 if train_flag:
     model.train()
     model.save_params("/home/diego/tmp/Parameters/WALKING", file_name)

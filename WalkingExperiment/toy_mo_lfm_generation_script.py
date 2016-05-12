@@ -42,6 +42,46 @@ lfm_hmm = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
 lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
                    noise_var)
 
+
+# plotting covariances
+
+def transform_covariance(cov):
+    ret = cov.copy()
+    rows, cols = cov.shape
+    lps = locations_per_segment
+    for r in xrange(rows):
+        for o in xrange(outputs):
+            ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
+    nret = ret.copy()
+    for o in xrange(outputs):
+        nret[lps * o:lps * (o + 1)] = ret[o::outputs]
+    return nret
+
+
+# dummy_model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
+#                              start_t, end_t, verbose=True)
+# dummy_model.read_params("/home/diego/tmp/Parameters/WALKING", "toy_LFM")
+#
+# plt.figure()
+# for i in xrange(lfm_hmm.n):
+#     if (i == 0):
+#         plt.xlabel("hola")
+#     plt.subplot(2, 3, i + 1)
+#     plt.imshow(transform_covariance(lfm_hmm.get_cov_function(i, False)))
+#     if i == 1:
+#         plt.title('(a)')
+#     plt.axis('off')
+#     plt.subplot(2, 3, i + 4)
+#     if (i < 2):
+#         plt.imshow(transform_covariance(dummy_model.get_cov_function((i+1)%2, False)))
+#     else:
+#         plt.imshow(transform_covariance(dummy_model.get_cov_function(i, False)))
+#     if i == 1:
+#         plt.title('(b)')
+#     plt.axis('off')
+# plt.show()
+
+
 # Generating observations
 
 
@@ -71,7 +111,7 @@ for i in xrange(number_realizations):
 
 # end scaling
 
-saving = True
+saving = False
 if saving:
     output_file = open('toy_lfm.npz', 'w')
     np.savez(output_file, training=training_data, test=testing_data,

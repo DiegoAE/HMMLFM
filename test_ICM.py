@@ -89,6 +89,41 @@ if train_flag:
 else:
     icm_hmm.read_params("/home/diego/tmp/Parameters/ICM", file_name)
 
+dummy_model = ICMHMMcontinuousMO(outputs, number_hidden_states, locations_per_segment, start_t,
+                           end_t, verbose=True)
+dummy_model.set_params(A, pi, rbf_variances, rbf_lengthscales, B_Ws, kappas,
+                   noise_var)
+
+# plotting covariances
+
+def transform_covariance(cov):
+    ret = cov.copy()
+    rows, cols = cov.shape
+    lps = locations_per_segment
+    for r in xrange(rows):
+        for o in xrange(outputs):
+            ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
+    nret = ret.copy()
+    for o in xrange(outputs):
+        nret[lps * o:lps * (o + 1)] = ret[o::outputs]
+    return nret
+
+plt.figure()
+for i in xrange(icm_hmm.n):
+    if (i == 0):
+        plt.xlabel("hola")
+    plt.subplot(2, 3, i + 1)
+    plt.imshow(transform_covariance(dummy_model.get_cov_function(i, False)))
+    if i == 1:
+        plt.title('(a)')
+    plt.axis('off')
+    plt.subplot(2, 3, i + 4)
+    plt.imshow(transform_covariance(icm_hmm.get_cov_function(i, False)))
+    if i == 1:
+        plt.title('(b)')
+    plt.axis('off')
+plt.show()
+
 print icm_hmm.pi
 print icm_hmm.A
 print icm_hmm.ICMparams
@@ -137,3 +172,83 @@ for i in xrange(considered_segments):
 plt.show()
 
 print "USED SEED", seed
+
+viterbi_training = recovered_paths
+# This is only useful for synthetic experiments.
+
+def f(a):
+    if a == 0:
+        return 2
+    if a == 1:
+        return 0
+    return 1
+
+TMP = hidden_states
+print "Training Vit"
+malos = 0
+totales = 0
+for i in xrange(len(TMP)):
+    # print map(f, TMP[i])
+    prueba = np.array(map(f, TMP[i]))
+    diff = prueba - viterbi_training[i]
+    malos += np.count_nonzero(diff)
+    totales += np.size(diff)
+    print diff
+
+print malos, totales
+
+colors_cycle = ['red', 'green', 'blue', 'purple']
+labels = ["output 1", "output 2"]
+considered_idx = 0
+regression_hidden_states = viterbi_training[considered_idx]
+# print regression_hidden_states
+last_value = 0
+plt.axvline(x=last_value, color='red', linestyle='--')
+considered_segments = 10
+# print considered_segments
+for i in xrange(considered_segments):
+    model = icm_hmm
+    c_hidden_state = regression_hidden_states[i]
+    plt.text(1 + i * 20 - i, 8., r'$z_{%d}=%d$' % (i, c_hidden_state),
+             fontsize=23)
+    c_obv = obs[considered_idx][i]
+    # predicting more time steps
+    t_test = np.linspace(start_t, end_t, number_testing_points)
+    mean_pred, cov_pred = model.predict(t_test, c_hidden_state, c_obv)
+    mean_pred = mean_pred.flatten()
+    cov_pred = np.diag(cov_pred)
+
+    current_outputs = np.zeros((number_testing_points, outputs))
+    current_covariances = np.zeros((number_testing_points, outputs))
+    # separating the outputs accordingly.
+    for j in xrange(outputs):
+        current_outputs[:, j] = mean_pred[j::outputs]
+        current_covariances[:, j] = cov_pred[j::outputs]
+
+    # NOTE: there is an important distinction between sample locations
+    # for evaluation and for plotting because different spaces are being used.
+    # Particularly, in the plotting space each sample is a unit away from each
+    # other. On the other hand, evaluation locations depend on start_t and end_t
+
+    obs_plotting_locations = last_value + np.linspace(
+            0, model.locations_per_segment - 1, model.locations_per_segment)
+    for j in xrange(outputs):
+        plt.scatter(obs_plotting_locations, c_obv[j::outputs],
+                    color=colors_cycle[j],
+                    label=[None, 'output %d' % (j + 1)][i == 0])
+    test_plotting_locations = last_value + np.linspace(
+            0, model.locations_per_segment - 1, number_testing_points)
+    for j in xrange(outputs):
+        plt.plot(test_plotting_locations, current_outputs[:, j],
+                 color=colors_cycle[j],
+        )
+        lower_trajectory = current_outputs[:, j] -\
+                           2 * np.sqrt(current_covariances[:, j])
+        upper_trajectory = current_outputs[:, j] +\
+                           2 * np.sqrt(current_covariances[:, j])
+        plt.fill_between(test_plotting_locations, lower_trajectory,
+                         upper_trajectory, alpha=0.4, facecolor=colors_cycle[j])
+    last_value = last_value + model.locations_per_segment - 1
+    plt.axvline(x=last_value, color='red', linestyle='--')
+plt.legend(loc='lower left')
+plt.show()

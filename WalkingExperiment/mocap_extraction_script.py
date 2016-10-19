@@ -76,7 +76,7 @@ test = np.zeros(test_observations, dtype='object')
 for s in xrange(len(motions_for_training)):
     Y = data[s][offsets[s]:, joints_to_analyse]
     nsamples, noutputs = Y.shape
-    number_segments = nsamples / (locations_per_segment - 1)
+    number_segments = (nsamples - 1) / (locations_per_segment - 1)
     # print number_segments
     c_obs = np.zeros((number_segments, locations_per_segment * noutputs))
     for output_id in xrange(noutputs):

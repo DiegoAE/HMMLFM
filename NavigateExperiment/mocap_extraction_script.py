@@ -42,13 +42,12 @@ locations_per_segment = 20
 
 # Scaling the original signal to be between -1 and 1.
 
-# max_value = 0
-# for i in xrange(len(motions_for_training)):
-#     Y = data[i]
-#     max_value = max(max_value, np.abs(Y).max())
-#
-# for i in xrange(len(motions_for_training)):
-#     data[i] *= (1.0/max_value)
+max_value = 0
+for i in xrange(len(motions_for_training)):
+    max_value = max(max_value, np.abs(data[i]['Y']).max())
+
+for i in xrange(len(motions_for_training)):
+    data[i]['Y'] *= (1.0/max_value)
 
 # end scaling
 
@@ -94,7 +93,7 @@ for s in xrange(len(motions_for_training)):
 
 saving = False
 if saving:
-    output_file = open('mocap_navigate_subject_41.npz', 'w')
+    output_file = open('mocap_navigate_subject_41_normalized.npz', 'w')
     np.savez(output_file, training=training, test=test, outputs=noutputs,
              lps=locations_per_segment)
     output_file.close()

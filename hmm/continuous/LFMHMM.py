@@ -60,8 +60,20 @@ class LFMHMM(_BaseHMM):
         for i in xrange(n):
             self.lfms[i] = lfm2(self.number_latent_f, number_outputs)
             self.lfms[i].set_inputs_with_same_ind(self.sample_locations)
+        self._INDEPENDENT_OUTPUTS = False
         _BaseHMM.__init__(self, n, None, precision, verbose)
         self.reset()
+
+    def set_independent_outputs(self):
+        # Currently only supporting independent outputs in the case where there
+        # is an equal number of latent forces and outputs.
+        assert self.number_outputs == self.number_latent_f
+        sensitivities = self.LFMparams['sensi']
+        for i in xrange(self.n):
+            sensitivities[i] = np.eye(self.number_latent_f)
+        packed_params = self.pack_params(self.LFMparams)
+        self._update_emission_params(packed_params)
+        self._INDEPENDENT_OUTPUTS = True
 
     def pack_params(self, params_dict):
         # Note: reestimate parameters has to work with self.LFMparams
@@ -227,8 +239,6 @@ class LFMHMM(_BaseHMM):
 
     def _reestimateLFMparams(self, gammas):
         new_LFMparams = self.optimize_hyperparams(gammas)
-        print "CURRENT VALUE OF EMISSION PARAMS: "
-        print self.unpack_params(new_LFMparams)
         return self.unpack_params(new_LFMparams)
 
     def objective_for_hyperparameters(self, gammas, parallelized=True):
@@ -277,6 +287,14 @@ class LFMHMM(_BaseHMM):
     def _reestimate(self, stats):
         new_model = _BaseHMM._reestimate(self, stats)
         new_model['LFMparams'] = self._reestimateLFMparams(stats['gammas'])
+        if self.verbose:
+            print "CURRENT MODEL PARAMETERS"
+            print "PI"
+            print repr(new_model['pi'])
+            print "A"
+            print repr(new_model['A'])
+            print "EMISSION PARAMS: "
+            print self.unpack_params(new_model['LFMparams'])
         return new_model
 
     def optimize_hyperparams(self, gammas):
@@ -300,9 +318,23 @@ class LFMHMM(_BaseHMM):
         noise_params = lfms_params[per_lfm * self.n:]
         # noise_params = np.ones(self.number_outputs) * 0.005
         assert np.size(noise_params) == self.number_outputs
+
         # updating each of the lfm's (i.e. hidden states) with the new params.
         for i in xrange(self.n):
             no_noise_params = lfms_params[i * per_lfm: (i + 1) * per_lfm]
+            if self._INDEPENDENT_OUTPUTS:
+
+                # Currently only supporting independent outputs in the case
+                # where there is an equal number of latent forces and outputs.
+                assert self.number_outputs == self.number_latent_f
+                for d in xrange(self.number_outputs):
+                    for q in xrange(self.number_latent_f):
+                        interest_idx = 2*self.number_outputs + q +\
+                                       d * self.number_latent_f
+
+                        # Setting all the elements out of the diagonal to zero.
+                        if d != q:
+                            no_noise_params[interest_idx] = 0.0
             self.lfms[i].set_params(
                     np.concatenate((no_noise_params, noise_params)), False)
 

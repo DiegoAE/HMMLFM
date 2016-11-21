@@ -31,10 +31,14 @@ joints_to_analyse = [ltibia_id, rtibia_id, lradius_id, rradius_id]
 
 animation_flag = False
 if animation_flag:
-    Y = data[0]
+    current_data = GPy.util.datasets.cmu_mocap(
+            subject='07',
+            train_motions=[motions_for_training[0]],
+            sample_every=1)
+    Y = current_data['Y']
     Y[:, 0:3] = 0.   # Make figure walk in place
     visualize = GPy.plotting.matplot_dep.visualize.skeleton_show(
-            Y[0, :], data['skel'])
+            Y[0, :], current_data['skel'])
     GPy.plotting.matplot_dep.visualize.data_play(Y, visualize, 60)
     plt.close()
 

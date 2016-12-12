@@ -9,6 +9,7 @@ class LFMHMMcontinuousMO(LFMHMM):
 
     def generate_observations(self, segments):
         """ This method returns a continuous realization of the model."""
+        assert segments > 0
         output = np.zeros((segments,
                            self.locations_per_segment * self.number_outputs),
                           dtype=self.precision)

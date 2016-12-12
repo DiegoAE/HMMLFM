@@ -64,6 +64,15 @@ class LFMHMM(_BaseHMM):
         _BaseHMM.__init__(self, n, None, precision, verbose)
         self.reset()
 
+    def set_sample_locations(self, sample_locations):
+        self.sample_locations = sample_locations
+        # Deleting the observations associated.
+        self.observations = None
+        # Deleting covariance cache.
+        self.memo_covs = {}
+        for i in xrange(self.n):
+            self.lfms[i].set_inputs_with_same_ind(self.sample_locations)
+
     def set_independent_outputs(self):
         # Currently only supporting independent outputs in the case where there
         # is an equal number of latent forces and outputs.

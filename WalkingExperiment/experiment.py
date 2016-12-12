@@ -90,8 +90,28 @@ print "Viterbi"
 print viterbi_training
 
 # Testing data
+# With a number of key points equal to 10 we have the whole set of observations.
+# By reducing it we shorten the observations just leaving a prefix and a suffix
+# of the same length.
+number_key_points = 10
+test_sample_locations = np.hstack((model.sample_locations[:number_key_points],
+                                   model.sample_locations[-number_key_points:]))
 
-viterbi_testing = model._viterbi(testing_observations)
+new_testing_observations = np.zeros(testing_observations.size, dtype='object')
+
+for observation_idx in xrange(testing_observations.size):
+    current_ob = testing_observations[observation_idx]
+    new_testing_observations[observation_idx] = np.zeros(
+            (current_ob.shape[0], test_sample_locations.size * outputs))
+    for segment_idx in xrange(current_ob.shape[0]):
+        segment = current_ob[segment_idx]
+        new_testing_observations[observation_idx][segment_idx] = np.hstack(
+                (segment[:number_key_points * outputs],
+                 segment[-number_key_points * outputs:])
+        )
+
+model.set_sample_locations(test_sample_locations)
+viterbi_testing = model._viterbi(new_testing_observations)
 print "Viterbi for testing"
 print viterbi_testing
 
@@ -110,7 +130,7 @@ for i in xrange(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     plt.text(1 + i * 20 - i, .75, r'$z_{%d}=%d$' % (i, c_hidden_state),
              fontsize=23)
-    c_obv = testing_observations[considered_idx][i]
+    c_obv = new_testing_observations[considered_idx][i]
     # predicting more time steps
     t_test = np.linspace(start_t, end_t, number_testing_points)
     mean_pred, cov_pred = model.predict(t_test, c_hidden_state, c_obv)
@@ -130,12 +150,16 @@ for i in xrange(considered_segments):
     # other. On the other hand, evaluation locations depend on start_t and end_t
 
     obs_plotting_locations = last_value + np.linspace(
-            0, model.locations_per_segment - 1, model.locations_per_segment)
+            0, locations_per_segment - 1, locations_per_segment)
+    obs_plotting_locations = np.hstack(
+            (obs_plotting_locations[:number_key_points],
+             obs_plotting_locations[-number_key_points:])
+    )
     for j in xrange(outputs):
         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
                     color=colors_cycle[j], label=[None, joints_name[j]][i == 0])
     test_plotting_locations = last_value + np.linspace(
-            0, model.locations_per_segment - 1, number_testing_points)
+            0, locations_per_segment - 1, number_testing_points)
     for j in xrange(outputs):
         plt.plot(test_plotting_locations, current_outputs[:, j],
                  color=colors_cycle[j])

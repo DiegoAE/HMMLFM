@@ -79,10 +79,16 @@ class lfm2():
         self.LL = -.5*(np.dot(self.y.T, self.alpha)[0][0]+self.y.size*self.l2pi + 2.*np.log(np.diag(self._L)).sum())
         return self.LL
 
-    def Kyy(self):
-        K = self.Kff(self.t, self.ind)
+    def Kyy(self, t=None, ind=None):
+        if t is None:
+            assert ind is None
+            t = self.t
+            ind = self.ind
+        else:
+            assert ind is not None
+        K = self.Kff(t, ind)
         n = range(K.shape[0])
-        K[n, n] += self.sn[self.ind].reshape((self.ind.size,))  # Adding noise
+        K[n, n] += self.sn[ind].reshape((ind.size,))  # Adding noise
         return K
 
     def Kff(self, t, index, tp=None, indexp=None):
@@ -206,15 +212,21 @@ class lfm2():
         return (K0 * kff).real
 
     #Prediction
-    def predict(self,ts, inds):
-        kfsf = self.Kff(ts, inds, self.t, self.ind)
+    def predict(self, ts, inds, t=None, ind=None, y=None):
+        """Standard GP prediction. Note that the prediction can be based on the
+        object state (self) or entirely on the input parameters."""
+        if t is None:
+            assert (ind is None) and (y is None)
+            t = self.t
+            ind = self.ind
+            y = self.y
+        else:
+            assert (ind is not None) and (y is not None)
+        kfsf = self.Kff(ts, inds, t, ind)
         kfsfs = self.Kff(ts, inds)
-        #Posterior for outputs
-        ms = np.dot(kfsf,self.alpha)
-        #v = np.linalg.solve( self._L, kfsf.T)
-        #print 'min var', v.min()
-        #Kysys = kfsfs - np.dot(v.T, v)
-        var = np.diag(kfsfs) - (kfsf.T*np.linalg.solve(self.K, kfsf.T)).sum(0)
+        K = self.Kyy(t, ind)
+        ms = np.dot(kfsf, np.linalg.solve(K, y))
+        var = kfsfs - np.dot(kfsf, np.linalg.solve(K, kfsf.T))
         return ms, var
 
     # def plot_predict(self,ts, inds):

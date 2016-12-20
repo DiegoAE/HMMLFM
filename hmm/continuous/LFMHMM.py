@@ -246,6 +246,11 @@ class LFMHMM(_BaseHMM):
         cov_pred = Kstarstar - np.dot(ktstar.T, np.linalg.solve(Ktt, ktstar))
         return mean_pred, cov_pred
 
+    def explicit_predict(self, t, ind, y, hidden_state, ts, inds):
+        """Stateless GP prediction. Totally dependent on the inputs."""
+        y = y.reshape((-1, 1))
+        return self.lfms[hidden_state].predict(ts, inds, t, ind, y)
+
     def _reestimateLFMparams(self, gammas):
         new_LFMparams = self.optimize_hyperparams(gammas)
         return self.unpack_params(new_LFMparams)
@@ -303,7 +308,7 @@ class LFMHMM(_BaseHMM):
             print "A"
             print repr(new_model['A'])
             print "EMISSION PARAMS: "
-            print self.unpack_params(new_model['LFMparams'])
+            print repr(new_model['LFMparams'])
         return new_model
 
     def optimize_hyperparams(self, gammas):

@@ -1,6 +1,6 @@
 from ndlutil import jitChol
 import numpy as np
-from scipy import optimize, integrate
+from scipy import optimize, integrate, stats
 from scipy.special import wofz
 
 class lfm2():
@@ -76,8 +76,12 @@ class lfm2():
 
     def LLeval(self):
         assert self.updated
-        self.LL = -.5*(np.dot(self.y.T, self.alpha)[0][0]+self.y.size*self.l2pi + 2.*np.log(np.diag(self._L)).sum())
-        return self.LL
+        # First approach to compute the GP loglikelihood:
+        # self.LL = -.5*(np.dot(self.y.T, self.alpha)[0][0]+self.y.size*self.l2pi + 2.*np.log(np.diag(self._L)).sum())
+        # return self.LL
+        # Second approach:
+        mvg = stats.multivariate_normal(np.zeros(self.K.shape[0]), self.K, True)
+        return mvg.logpdf(self.y)
 
     def Kyy(self, t=None, ind=None):
         if t is None:

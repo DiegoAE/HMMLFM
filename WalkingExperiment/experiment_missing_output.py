@@ -188,6 +188,7 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
     plt.legend(loc='lower left')
 plt.savefig("missing_output_%d.png" % chosen_output, bbox_inches='tight')
-plt.savefig("missing_output_%d.eps" % chosen_output, dpi=1000,
-            bbox_inches='tight')
+# plt.savefig("missing_output_%d.eps" % chosen_output, dpi=1000,
+#             bbox_inches='tight')
+plt.savefig("missing_output_%d.pdf" % chosen_output, bbox_inches='tight')
 plt.show()

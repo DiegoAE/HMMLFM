@@ -174,3 +174,23 @@ for i in xrange(considered_segments):
 plt.legend(loc='lower left')
 plt.show()
 
+
+def transform_covariance(cov):
+    ret = cov.copy()
+    rows, cols = cov.shape
+    lps = locations_per_segment
+    for r in xrange(rows):
+        for o in xrange(outputs):
+            ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
+    nret = ret.copy()
+    for o in xrange(outputs):
+        nret[lps * o:lps * (o + 1)] = ret[o::outputs]
+    return nret
+
+plt.figure()
+for i in xrange(model.n):
+    plt.subplot(1, model.n, i + 1)
+    cov_m = model.get_cov_function(i, False)
+    plt.imshow(transform_covariance(cov_m))
+    plt.colorbar(fraction=0.046, pad=0.04)
+plt.show()

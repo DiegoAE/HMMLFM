@@ -331,7 +331,8 @@ class LFMHMM(_BaseHMM):
                   self.number_latent_f * (1 + self.number_outputs)
         noise_params = lfms_params[per_lfm * self.n:]
         # noise_params = np.ones(self.number_outputs) * 0.005
-        assert np.size(noise_params) == self.number_outputs
+        assert np.size(noise_params) == self.number_outputs,\
+            "(%s, %s)" % (np.size(noise_params), self.number_outputs)
 
         # updating each of the lfm's (i.e. hidden states) with the new params.
         for i in xrange(self.n):
@@ -455,6 +456,8 @@ class LFMHMM(_BaseHMM):
                (self.n, self.number_outputs)
         assert model_to_set['LFMparams']['lengthscales'].shape == \
                (self.n, self.number_latent_f)
+        assert model_to_set['LFMparams']['sensi'].shape == \
+               (self.n, self.number_outputs, self.number_latent_f)
         assert model_to_set['LFMparams']['noise_var'].shape == \
                (self.number_outputs,)
         self._updatemodel(model_to_set)

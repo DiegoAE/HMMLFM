@@ -3,11 +3,11 @@ from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
 from hmm.continuous.LFMHMMTyingMO import LFMHMMTyingMO
 from matplotlib import pyplot as plt
 import numpy as np
+import os
 
 
 seed = np.random.random_integers(100000)
-seed = 79861  # LFM
-# seed = 8629  # ICM
+seed = 79861
 np.random.seed(seed)
 print "USED SEED", seed
 
@@ -22,18 +22,13 @@ def pick_outputs(input, noutputs, required_outputs):
         output[i] = output[i][:, output_idx]
     return output
 
-# input_file = file('mocap_walking_subject_07.npz', 'rb')
-input_file = file('toy_lfm.npz', 'rb')
-data = np.load(input_file)
+file_path = os.path.join(os.path.dirname(__file__),
+                         'toy_lfm.npz')
+data = np.load(file(file_path, 'rb'))
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
 locations_per_segment = data['lps']
-# Picking outputs
-# training_observations = pick_outputs(training_observations, outputs, [0])
-# testing_observations = pick_outputs(testing_observations, outputs, [0])
-# outputs = 1
-#
 
 number_lfm = 3
 number_latent_forces = 1
@@ -44,44 +39,20 @@ model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
 
 colors_cycle = ['red', 'green', 'blue', 'purple']
 joints_name = ['left tibia', 'right tibia', 'left radius', 'right radius']
-# Plotting the inputs
-# considered_idx = 0
-# last_value = 0
-# plt.axvline(x=last_value, color='red', linestyle='--')
-# for i in xrange(len(training_observations[considered_idx])):
-#     c_obv = training_observations[considered_idx][i]
-#     obs_plotting_locations = last_value + np.linspace(
-#             0, model.locations_per_segment - 1, model.locations_per_segment)
-#     for j in xrange(outputs):
-#         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
-#                     color=colors_cycle[j])
-#     last_value = last_value + model.locations_per_segment - 1
-#     plt.axvline(x=last_value, color='red', linestyle='--')
-# plt.show()
-# end plotting
 
 model.set_observations(training_observations)
-# model.read_params("/home/diego/tmp/Parameters/WALKING", "MANUAL_INIT")
-
-print model.pi
-print model.A
-print model.LFMparams
-
-print "start training"
 
 train_flag = False
+PRETRAINED_MODElS_DIRECTORY = os.path.join(os.path.dirname(__file__),
+                                           '../PretrainedModels')
 file_name = "toy_LFM"
 if train_flag:
+    print "Start training"
     model.train()
-    model.save_params("/home/diego/tmp/Parameters/WALKING", file_name)
+    model.save_params(PRETRAINED_MODElS_DIRECTORY + "/TOY", file_name)
 else:
-    model.read_params("/home/diego/tmp/Parameters/WALKING", file_name)
-
-
-print "after training"
-print model.pi
-print model.A
-print model.LFMparams
+    print "Loading a pretrained model."
+    model.read_params(PRETRAINED_MODElS_DIRECTORY + "/TOY", file_name)
 
 print "USED SEED", seed
 

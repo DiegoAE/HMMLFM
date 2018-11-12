@@ -6,12 +6,12 @@ locations_per_segment = 20
 
 seed = 75599
 np.random.seed(seed)
-print "USED SEED", seed
+print(("USED SEED", seed))
 
 pi = np.array([0.1, 0.3, 0.6])
-print "initial state distribution", pi
+print(("initial state distribution", pi))
 A = np.array([[0.8, 0.1, 0.1], [0.6, 0.3, 0.1], [0.3, 0.2, 0.5]])
-print "hidden state transition matrix\n", A
+print(("hidden state transition matrix\n", A))
 
 number_lfm = 3
 outputs = 4
@@ -50,7 +50,7 @@ testing_data = np.zeros(number_realizations, dtype='object')
 training_viterbi = np.zeros(number_realizations, dtype='object')
 testing_viterbi = np.zeros(number_realizations, dtype='object')
 
-for f in xrange(number_realizations):
+for f in range(number_realizations):
     # fixed length
     training_data[f], viterbi_tr = lfm_hmm.generate_observations(20)
     testing_data[f], viterbi_te = lfm_hmm.generate_observations(20)
@@ -60,11 +60,11 @@ for f in xrange(number_realizations):
 # Scaling the original signal to be between -1 and 1.
 
 max_value = 0
-for i in xrange(number_realizations):
+for i in range(number_realizations):
     max_value = max(max_value, np.abs(training_data[i]).max())
     max_value = max(max_value, np.abs(testing_data[i]).max())
 
-for i in xrange(number_realizations):
+for i in range(number_realizations):
     training_data[i] *= (1.0/max_value)
     testing_data[i] *= (1.0/max_value)
 

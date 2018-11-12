@@ -6,7 +6,7 @@ import scipy.io as sio
 seed = np.random.random_integers(10000)
 # seed = 4748
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 ### LFM HMM
 number_lfm = 3
@@ -27,7 +27,7 @@ picked_sample = 0
 f = mat_file['yTest'][0][-1][0][picked_sample]
 n_outputs = f.shape[1]
 Y = np.zeros((n_samples, n_outputs))
-for i in xrange(n_outputs):
+for i in range(n_outputs):
     Y[:, i] = f[0][i].flatten()
 
 
@@ -40,7 +40,7 @@ for i in xrange(n_outputs):
 # print "Y ", obs[testing_idx, 0], obs[testing_idx, 1]
 
 plt.plot(x.flatten(), Y)
-for i in xrange(1, 6):
+for i in range(1, 6):
     plt.axvline(x=10 * i, color='red', linestyle='--')
 plt.show()
 
@@ -49,22 +49,22 @@ plt.show()
 channel_id = 0
 number_training_sequences = 1
 obs = []
-for s in xrange(number_training_sequences):
+for s in range(number_training_sequences):
     number_segments = 6  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment))
     signal = Y[:, channel_id]
     idx = 0
-    for i in xrange(number_segments):
+    for i in range(number_segments):
         c_obs[i, :] = signal[idx:idx + locations_per_segment]
         idx = idx + locations_per_segment - 1
     obs.append(c_obs)
 lfm_hmm.set_observations(obs)
 
 
-print "before training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print("before training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
 train_flag = False
 if train_flag:
@@ -73,10 +73,10 @@ if train_flag:
 else:
     lfm_hmm.read_params("/home/diego/tmp/Parameters", "pruebaSDLFM_1")
 
-print "after training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print("after training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
 # Second experiment: Regression
 number_testing_points = 100
@@ -84,7 +84,7 @@ regression_hidden_states = lfm_hmm._viterbi()[0]
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 considered_segments = 6
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = obs[0][i]
     # predicting more time steps
@@ -102,7 +102,7 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 
 
-print "Inferred hidden states ", regression_hidden_states
+print("Inferred hidden states ", regression_hidden_states)
 
 plt.title("Fitting of the model given an observation sequence.")
 plt.legend(loc='upper left')
@@ -112,7 +112,7 @@ plt.show()
 # Plotting the priors
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     # predicting more time steps
     t_test = np.linspace(start_t, end_t, locations_per_segment)

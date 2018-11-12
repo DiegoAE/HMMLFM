@@ -9,22 +9,22 @@ import os
 seed = np.random.random_integers(100000)
 seed = 79861
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 def pick_outputs(input, noutputs, required_outputs):
     output = input.copy()
-    for i in xrange(len(output)):
+    for i in range(len(output)):
         output_idx = []
         total_cols = output[i].shape[1]
         for idx in required_outputs:
-            output_idx.extend(range(idx, total_cols, noutputs))
+            output_idx.extend(list(range(idx, total_cols, noutputs)))
         output_idx.sort()
         output[i] = output[i][:, output_idx]
     return output
 
 file_path = os.path.join(os.path.dirname(__file__),
                          'toy_lfm.npz')
-data = np.load(file(file_path, 'rb'))
+data = np.load(file_path, mmap_mode='rb', encoding='bytes')
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
@@ -47,24 +47,24 @@ PRETRAINED_MODElS_DIRECTORY = os.path.join(os.path.dirname(__file__),
                                            '../PretrainedModels')
 file_name = "toy_LFM"
 if train_flag:
-    print "Start training"
+    print("Start training")
     model.train()
     model.save_params(PRETRAINED_MODElS_DIRECTORY + "/TOY", file_name)
 else:
-    print "Loading a pretrained model."
+    print("Loading a pretrained model.")
     model.read_params(PRETRAINED_MODElS_DIRECTORY + "/TOY", file_name)
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 viterbi_training =  model._viterbi()
-print "Viterbi"
-print viterbi_training
+print("Viterbi")
+print(viterbi_training)
 
 # Testing data
 
 viterbi_testing = model._viterbi(testing_observations)
-print "Viterbi for testing"
-print viterbi_testing
+print("Viterbi for testing")
+print(viterbi_testing)
 
 # This is only useful for synthetic experiments.
 
@@ -87,7 +87,7 @@ last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 considered_segments = 10
 # print considered_segments
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     # plt.text(1 + i * 20 - i, .75, r'$z_{%d}=%d$' % (i, c_hidden_state),
     #          fontsize=23)
@@ -101,7 +101,7 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
@@ -112,12 +112,12 @@ for i in xrange(considered_segments):
 
     obs_plotting_locations = last_value + np.linspace(
             0, model.locations_per_segment - 1, model.locations_per_segment)
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
                     color=colors_cycle[j])
     test_plotting_locations = last_value + np.linspace(
             0, model.locations_per_segment - 1, number_testing_points)
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.plot(test_plotting_locations, current_outputs[:, j],
                  color=colors_cycle[j],
                  label=[None, 'predictive mean output %d' % (j + 1)][i == 0]
@@ -136,18 +136,18 @@ plt.show()
 # This is only useful for synthetic experiments.
 
 TMP = data['training_viterbi']
-print "Training Vit"
-for i in xrange(len(TMP)):
+print("Training Vit")
+for i in range(len(TMP)):
     # print map(f, TMP[i])
-    prueba = np.array(map(f, TMP[i]))
+    prueba = np.array(list(map(f, TMP[i])))
     diff = prueba - viterbi_training[i]
-    print diff
+    print(diff)
 
 TMP = data['testing_viterbi']
-print "Testing Vit"
-for i in xrange(len(TMP)):
+print("Testing Vit")
+for i in range(len(TMP)):
     # print map(f, TMP[i])
-    prueba = np.array(map(f, TMP[i]))
+    prueba = np.array(list(map(f, TMP[i])))
     diff = prueba - viterbi_testing[i]
-    print diff
+    print(diff)
 

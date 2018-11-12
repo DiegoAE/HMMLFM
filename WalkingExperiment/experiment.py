@@ -8,22 +8,22 @@ import os
 seed = np.random.random_integers(100000)
 seed = 79861
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 def pick_outputs(input, noutputs, required_outputs):
     output = input.copy()
-    for i in xrange(len(output)):
+    for i in range(len(output)):
         output_idx = []
         total_cols = output[i].shape[1]
         for idx in required_outputs:
-            output_idx.extend(range(idx, total_cols, noutputs))
+            output_idx.extend(list(range(idx, total_cols, noutputs)))
         output_idx.sort()
         output[i] = output[i][:, output_idx]
     return output
 
 file_path = os.path.join(os.path.dirname(__file__),
                          'mocap_walking_subject_07.npz')
-data = np.load(file(file_path, 'rb'))
+data = np.load(file_path, mmap_mode='rb', encoding='bytes')
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
@@ -47,18 +47,18 @@ PRETRAINED_MODElS_DIRECTORY = os.path.join(os.path.dirname(__file__),
                                            '../PretrainedModels')
 file_name = "MO_MOCAP_3_forces"
 if train_flag:
-    print "Start training"
+    print("Start training")
     model.train()
     model.save_params(PRETRAINED_MODElS_DIRECTORY + "/WALKING", file_name)
 else:
-    print "Loading a pretrained model."
+    print("Loading a pretrained model.")
     model.read_params(PRETRAINED_MODElS_DIRECTORY + "/WALKING", file_name)
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 viterbi_training =  model._viterbi()
-print "Viterbi"
-print viterbi_training
+print("Viterbi")
+print(viterbi_training)
 
 # Testing data
 # With a number of key points equal to 10 we have the whole set of observations.
@@ -70,11 +70,11 @@ test_sample_locations = np.hstack((model.sample_locations[:number_key_points],
 
 new_testing_observations = np.zeros(testing_observations.size, dtype='object')
 
-for observation_idx in xrange(testing_observations.size):
+for observation_idx in range(testing_observations.size):
     current_ob = testing_observations[observation_idx]
     new_testing_observations[observation_idx] = np.zeros(
             (current_ob.shape[0], test_sample_locations.size * outputs))
-    for segment_idx in xrange(current_ob.shape[0]):
+    for segment_idx in range(current_ob.shape[0]):
         segment = current_ob[segment_idx]
         new_testing_observations[observation_idx][segment_idx] = np.hstack(
                 (segment[:number_key_points * outputs],
@@ -83,8 +83,8 @@ for observation_idx in xrange(testing_observations.size):
 
 model.set_sample_locations(test_sample_locations)
 viterbi_testing = model._viterbi(new_testing_observations)
-print "Viterbi for testing"
-print viterbi_testing
+print("Viterbi for testing")
+print(viterbi_testing)
 
 # Looking at the resulting fit
 
@@ -96,7 +96,7 @@ last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 considered_segments = testing_observations[considered_idx].shape[0]
 # print considered_segments
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     plt.text(1 + i * 20 - i, .75, r'$z_{%d}=%d$' % (i, c_hidden_state),
              fontsize=23)
@@ -110,7 +110,7 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
@@ -125,12 +125,12 @@ for i in xrange(considered_segments):
             (obs_plotting_locations[:number_key_points],
              obs_plotting_locations[-number_key_points:])
     )
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
                     color=colors_cycle[j], label=[None, joints_name[j]][i == 0])
     test_plotting_locations = last_value + np.linspace(
             0, locations_per_segment - 1, number_testing_points)
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.plot(test_plotting_locations, current_outputs[:, j],
                  color=colors_cycle[j])
         lower_trajectory = current_outputs[:, j] -\
@@ -149,16 +149,16 @@ def transform_covariance(cov):
     ret = cov.copy()
     rows, cols = cov.shape
     lps = locations_per_segment
-    for r in xrange(rows):
-        for o in xrange(outputs):
+    for r in range(rows):
+        for o in range(outputs):
             ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
     nret = ret.copy()
-    for o in xrange(outputs):
+    for o in range(outputs):
         nret[lps * o:lps * (o + 1)] = ret[o::outputs]
     return nret
 
 plt.figure()
-for i in xrange(model.n):
+for i in range(model.n):
     plt.subplot(1, model.n, i + 1)
     cov_m = model.get_cov_function(i, False)
     plt.imshow(transform_covariance(cov_m))

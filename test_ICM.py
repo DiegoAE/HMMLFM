@@ -8,12 +8,12 @@ import numpy as np
 seed = np.random.random_integers(10000)
 seed = 5879
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 pi = np.array([0.3, 0.3, 0.4])
-print "initial state distribution", pi
+print("initial state distribution", pi)
 A = np.array([[0.1, 0.5, 0.4], [0.6, 0.1, 0.3], [0.4, 0.5, 0.1]])
-print "hidden state transition matrix\n", A
+print("hidden state transition matrix\n", A)
 
 number_hidden_states = 3
 outputs = 2
@@ -32,15 +32,15 @@ icm_hmm.set_params(A, pi, rbf_variances, rbf_lengthscales, B_Ws, kappas,
                    noise_var)
 
 # Testing packing and unpacking
-print "Testing packing and unpacking: ",
+print("Testing packing and unpacking: ", end=' ')
 test_unit_1 = icm_hmm.unpack_params(icm_hmm.pack_params(icm_hmm.ICMparams))
 test_unit_2 = icm_hmm.ICMparams
-for k in test_unit_2.keys():
+for k in list(test_unit_2.keys()):
     assert np.allclose(test_unit_2[k], test_unit_1[k])
-print "Accepted!"
+print("Accepted!")
 
-for i in xrange(number_hidden_states):
-    print icm_hmm.icms[i].icm_kernel
+for i in range(number_hidden_states):
+    print(icm_hmm.icms[i].icm_kernel)
 
 # Plotting
 
@@ -50,13 +50,13 @@ ax.set_prop_cycle(cycler('color', ['red', 'green']))
 segments = 10
 obs_1, hidden_states_1 = icm_hmm.generate_observations(segments)
 last_value = 0
-for i in xrange(segments):
+for i in range(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
     sl = icm_hmm.sample_locations
     current_obs = obs_1[i]
     current_outputs = np.zeros((locations_per_segment, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = current_obs[j::outputs]
     plt.plot(last_value + sl - sl[0], current_outputs)
     last_value += end_t - start_t
@@ -65,9 +65,9 @@ plt.show()
 obs = []
 n_training_sequences = 10
 hidden_states = np.zeros(n_training_sequences, dtype=object)
-for i in xrange(n_training_sequences):
+for i in range(n_training_sequences):
     segments = np.random.randint(1, 100)
-    print "The %d-th sequence has length %d" % (i, segments)
+    print("The %d-th sequence has length %d" % (i, segments))
     output, hidden = icm_hmm.generate_observations(segments)
     obs.append(output)
     hidden_states[i] = hidden
@@ -75,11 +75,11 @@ for i in xrange(n_training_sequences):
 icm_hmm.set_observations(obs)
 icm_hmm.reset()
 
-print icm_hmm.pi
-print icm_hmm.A
-print icm_hmm.ICMparams
+print(icm_hmm.pi)
+print(icm_hmm.A)
+print(icm_hmm.ICMparams)
 
-print "start training"
+print("start training")
 
 train_flag = False
 file_name = "First-MO-ICM-continuous"
@@ -100,16 +100,16 @@ def transform_covariance(cov):
     ret = cov.copy()
     rows, cols = cov.shape
     lps = locations_per_segment
-    for r in xrange(rows):
-        for o in xrange(outputs):
+    for r in range(rows):
+        for o in range(outputs):
             ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
     nret = ret.copy()
-    for o in xrange(outputs):
+    for o in range(outputs):
         nret[lps * o:lps * (o + 1)] = ret[o::outputs]
     return nret
 
 plt.figure()
-for i in xrange(icm_hmm.n):
+for i in range(icm_hmm.n):
     if (i == 0):
         plt.xlabel("hola")
     plt.subplot(2, 3, i + 1)
@@ -124,12 +124,12 @@ for i in xrange(icm_hmm.n):
     plt.axis('off')
 plt.show()
 
-print icm_hmm.pi
-print icm_hmm.A
-print icm_hmm.ICMparams
+print(icm_hmm.pi)
+print(icm_hmm.A)
+print(icm_hmm.ICMparams)
 
 recovered_paths = icm_hmm._viterbi()
-print recovered_paths
+print(recovered_paths)
 
 obs_1 = obs[1]
 hidden_states_1 = recovered_paths[1]
@@ -139,7 +139,7 @@ number_testing_points = 100
 # prediction
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = hidden_states_1[i]
     c_obv = obs_1[i]
     # predicting more time steps
@@ -151,12 +151,12 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
     sl = icm_hmm.sample_locations
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
                     facecolors='none', label=[None, 'observations'][i == 0])
 
@@ -171,7 +171,7 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 plt.show()
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 viterbi_training = recovered_paths
 # This is only useful for synthetic experiments.
@@ -184,18 +184,18 @@ def f(a):
     return 1
 
 TMP = hidden_states
-print "Training Vit"
+print("Training Vit")
 malos = 0
 totales = 0
-for i in xrange(len(TMP)):
+for i in range(len(TMP)):
     # print map(f, TMP[i])
-    prueba = np.array(map(f, TMP[i]))
+    prueba = np.array(list(map(f, TMP[i])))
     diff = prueba - viterbi_training[i]
     malos += np.count_nonzero(diff)
     totales += np.size(diff)
-    print diff
+    print(diff)
 
-print malos, totales
+print(malos, totales)
 
 colors_cycle = ['red', 'green', 'blue', 'purple']
 labels = ["output 1", "output 2"]
@@ -206,7 +206,7 @@ last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 considered_segments = 10
 # print considered_segments
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     model = icm_hmm
     c_hidden_state = regression_hidden_states[i]
     plt.text(1 + i * 20 - i, 8., r'$z_{%d}=%d$' % (i, c_hidden_state),
@@ -221,7 +221,7 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
@@ -232,13 +232,13 @@ for i in xrange(considered_segments):
 
     obs_plotting_locations = last_value + np.linspace(
             0, model.locations_per_segment - 1, model.locations_per_segment)
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(obs_plotting_locations, c_obv[j::outputs],
                     color=colors_cycle[j],
                     label=[None, 'output %d' % (j + 1)][i == 0])
     test_plotting_locations = last_value + np.linspace(
             0, model.locations_per_segment - 1, number_testing_points)
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.plot(test_plotting_locations, current_outputs[:, j],
                  color=colors_cycle[j],
         )

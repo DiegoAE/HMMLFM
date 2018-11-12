@@ -7,13 +7,13 @@ seed = np.random.random_integers(10000)
 seed = 4748
 np.random.seed(seed)
 
-print "Using GPy version: ", GPy.__version__
+print("Using GPy version: ", GPy.__version__)
 
 data = GPy.util.datasets.cmu_mocap('43', ['01'], sample_every=1)
-print data['info']
+print(data['info'])
 Y = data['Y'][70:, :]
 nsamples, nfeatures = Y.shape
-print "Y's shape ", Y.shape
+print("Y's shape ", Y.shape)
 
 
 channel_id = 9
@@ -34,22 +34,22 @@ lfm_hmm = LFMHMMcontinuous(outputs, number_lfm, locations_per_segment, start_t,
 
 number_training_sequences = 1
 obs = []
-for s in xrange(number_training_sequences):
+for s in range(number_training_sequences):
     number_segments = 18  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment))
     signal = Y[:, channel_id]
     idx = 0
-    for i in xrange(number_segments):
+    for i in range(number_segments):
         c_obs[i, :] = signal[idx:idx + locations_per_segment]
         idx = idx + locations_per_segment - 1
     obs.append(c_obs)
 
 lfm_hmm.set_observations(obs)
 
-print "before training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print("before training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
 train_flag = False
 if train_flag:
@@ -58,10 +58,10 @@ if train_flag:
 else:
     lfm_hmm.read_params("/home/diego/tmp/Parameters/MOCAP", "pruebaMOCAP")
 
-print "after training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print("after training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
 
 # Second experiment: Regression
@@ -70,7 +70,7 @@ regression_hidden_states = lfm_hmm._viterbi()[0]
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
 considered_segments = 18  # fixed for now.
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = obs[0][i]
     # predicting more time steps
@@ -88,10 +88,10 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 
 
-print "Inferred hidden states ", regression_hidden_states
+print("Inferred hidden states ", regression_hidden_states)
 
 plt.title("Fitting of the model given an observation sequence.")
 plt.legend(loc='upper left')
 plt.show()
 
-print "USED SEED", seed
+print("USED SEED", seed)

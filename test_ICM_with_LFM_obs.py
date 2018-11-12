@@ -9,12 +9,12 @@ import numpy as np
 seed = np.random.random_integers(100000)
 seed = 10000
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 pi = np.array([0.3, 0.3, 0.4])
-print "initial state distribution", pi
+print("initial state distribution", pi)
 A = np.array([[0.1, 0.5, 0.4], [0.6, 0.1, 0.3], [0.4, 0.5, 0.1]])
-print "hidden state transition matrix\n", A
+print("hidden state transition matrix\n", A)
 
 number_lfm = 3
 outputs = 3
@@ -44,13 +44,13 @@ ax.set_prop_cycle(cycler('color', ['red', 'green', 'blue']))
 segments = 10
 obs_1, hidden_states_obs1 = lfm_hmm.generate_observations(segments)
 last_value = 0
-for i in xrange(segments):
+for i in range(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
     sl = lfm_hmm.sample_locations
     current_obs = obs_1[i]
     current_outputs = np.zeros((locations_per_segment, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = current_obs[j::outputs]
     plt.plot(last_value + sl - sl[0], current_outputs)
     last_value += end_t - start_t
@@ -62,11 +62,11 @@ icm_hmm = ICMHMMcontinuousMO(outputs, number_lfm,
 
 icm_hmm.set_observations([obs_1])
 
-print icm_hmm.pi
-print icm_hmm.A
-print icm_hmm.ICMparams
+print(icm_hmm.pi)
+print(icm_hmm.A)
+print(icm_hmm.ICMparams)
 
-print "start training"
+print("start training")
 
 train_flag = False
 file_name = "MO-ICM-continuous-with-LFM-obs"
@@ -76,12 +76,12 @@ if train_flag:
 else:
     icm_hmm.read_params("/home/diego/tmp/Parameters/ICM", file_name)
 
-print icm_hmm.pi
-print icm_hmm.A
-print icm_hmm.ICMparams
+print(icm_hmm.pi)
+print(icm_hmm.A)
+print(icm_hmm.ICMparams)
 
 recovered_paths = icm_hmm._viterbi()
-print recovered_paths
+print(recovered_paths)
 
 
 hidden_states_1 = recovered_paths[0]
@@ -92,7 +92,7 @@ number_testing_points = 100
 last_value = 0
 colors_cycle = ['red', 'green', 'blue']
 plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = hidden_states_1[i]
     c_obv = obs_1[i]
     # predicting more time steps
@@ -104,16 +104,16 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
     sl = icm_hmm.sample_locations
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
                     color=colors_cycle[j])
 
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.plot(last_value + t_test - t_test[0], current_outputs[:, j],
                  color=colors_cycle[j], label=[None, 'predicted mean'][i == 0])
     plt.plot(last_value + t_test - t_test[0],
@@ -124,7 +124,7 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 plt.show()
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 
 

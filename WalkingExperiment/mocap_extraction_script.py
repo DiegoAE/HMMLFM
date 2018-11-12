@@ -47,17 +47,17 @@ locations_per_segment = 20
 # Scaling the original signal to be between -1 and 1.
 
 max_value = 0
-for i in xrange(len(motions_for_training)):
+for i in range(len(motions_for_training)):
     Y = data[i]
     max_value = max(max_value, np.abs(Y).max())
 
-for i in xrange(len(motions_for_training)):
+for i in range(len(motions_for_training)):
     data[i] *= (1.0/max_value)
 
 # end scaling
 
 plt.figure(1)
-for i in xrange(len(motions_for_training)):
+for i in range(len(motions_for_training)):
     plt.subplot(len(motions_for_training), 1, i + 1)
     Y = data[i][offsets[i]:, joints_to_analyse]
     nsamples, _ = Y.shape
@@ -77,16 +77,16 @@ training = np.zeros(training_observations, dtype='object')
 test_observations = len(motions_for_training) - training_observations
 test = np.zeros(test_observations, dtype='object')
 
-for s in xrange(len(motions_for_training)):
+for s in range(len(motions_for_training)):
     Y = data[s][offsets[s]:, joints_to_analyse]
     nsamples, noutputs = Y.shape
-    number_segments = (nsamples - 1) / (locations_per_segment - 1)
+    number_segments = int((nsamples - 1) / (locations_per_segment - 1))
     # print number_segments
     c_obs = np.zeros((number_segments, locations_per_segment * noutputs))
-    for output_id in xrange(noutputs):
+    for output_id in range(noutputs):
         signal = Y[:, output_id]
         idx = 0
-        for i in xrange(number_segments):
+        for i in range(number_segments):
             c_obs[i, output_id::noutputs] = \
                 signal[idx:idx + locations_per_segment]
             idx = idx + locations_per_segment - 1

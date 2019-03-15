@@ -46,14 +46,14 @@ class MultipleRealizationsLFM():
 
     def Train(self):
         results = optimize.minimize(self.wrapped_objective, self.params)
-        print results.fun
+        print(results.fun)
         self.set_params(results.x)
 
 
 seed = np.random.random_integers(100000)
 seed = 79861  # LFM
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 input_file = file('WalkingExperiment/mocap_walking_subject_07.npz', 'rb')
 # input_file = file('toy_lfm.npz', 'rb')
@@ -74,7 +74,7 @@ for realization in training_observations:
     lfm = lfm2(number_latent_f, outputs)
     t = np.zeros((0,1), dtype='float64')
     last_value = 0
-    for s in xrange(nsegments):
+    for s in range(nsegments):
         tmp = np.linspace(start_t, end_t, locations_per_segment).reshape((-1,1))
         tmp += last_value
         t = np.vstack((t, tmp))
@@ -83,7 +83,7 @@ for realization in training_observations:
     lfm.set_inputs_with_same_ind(t)
     lfm.set_outputs(flattened_realization)
     lfms.append(lfm)
-    print flattened_realization.shape
+    print(flattened_realization.shape)
 
 
 

@@ -8,22 +8,22 @@ import os
 
 seed = 79861
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 def pick_outputs(input, noutputs, required_outputs):
     output = input.copy()
-    for i in xrange(len(output)):
+    for i in range(len(output)):
         output_idx = []
         total_cols = output[i].shape[1]
         for idx in required_outputs:
-            output_idx.extend(range(idx, total_cols, noutputs))
+            output_idx.extend(list(range(idx, total_cols, noutputs)))
         output_idx.sort()
         output[i] = output[i][:, output_idx]
     return output
 
 file_path = os.path.join(os.path.dirname(__file__),
                          'mocap_walking_subject_07.npz')
-data = np.load(file(file_path, 'rb'))
+data = np.load(file_path, mmap_mode='rb', encoding='bytes')
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
@@ -46,22 +46,22 @@ PRETRAINED_MODElS_DIRECTORY = os.path.join(os.path.dirname(__file__),
                                            '../PretrainedModels')
 file_name = "MO_MOCAP_3_forces"
 if train_flag:
-    print "Start training"
+    print("Start training")
     model.train()
     model.save_params(PRETRAINED_MODElS_DIRECTORY + "/WALKING", file_name)
 else:
-    print "Loading a pretrained model."
+    print("Loading a pretrained model.")
     model.read_params(PRETRAINED_MODElS_DIRECTORY + "/WALKING", file_name)
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 viterbi_training =  model._viterbi()
-print "Viterbi"
-print viterbi_training
+print("Viterbi")
+print(viterbi_training)
 
 viterbi_testing = model._viterbi(testing_observations)
-print "Viterbi for testing"
-print viterbi_testing
+print("Viterbi for testing")
+print(viterbi_testing)
 
 #
 
@@ -74,7 +74,7 @@ def explicit_predict_wrapper(input_model, t, ind, y, hidden_state, ts, inds,
     """
     obs = copy.deepcopy(y)
     current_shift = obs[:outputs - 1].copy()
-    for j in xrange(outputs - 1):
+    for j in range(outputs - 1):
         obs[j::outputs - 1] -= current_shift[j]
     mean_pred, cov_pred = input_model.explicit_predict(
             t, ind, obs, hidden_state, ts, inds)
@@ -93,7 +93,7 @@ considered_segments = testing_observations[considered_idx].shape[0]
 mean_missing_output = 0.0
 chosen_output = 3
 plt.figure(1)
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = testing_observations[considered_idx][i]
     # predicting more time steps

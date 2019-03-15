@@ -1,6 +1,7 @@
 from hmm.continuous.LFMHMMcontinuousMO import LFMHMMcontinuousMO
 from matplotlib import pyplot as plt
 import numpy as np
+import os
 
 number_lfm = 3
 outputs = 4
@@ -34,7 +35,13 @@ lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
 
 dummy_model = LFMHMMcontinuousMO(outputs, number_lfm, locations_per_segment,
                              start_t, end_t, verbose=True)
-dummy_model.read_params("/home/diego/tmp/Parameters/WALKING", "toy_LFM")
+dummy_model.read_params(os.path.realpath("../PretrainedModels/TOY"),
+                        "toy_LFM")
+#The following expression of relative path also works
+#dummy_model.read_params(os.getcwd()+"/../PretrainedModels/TOY","toy_LFM")
+
+#This following expression was for the original arthor's convenience
+#dummy_model.read_params("/home/diego/tmp/Parameters/WALKING", "toy_LFM")
 
 # plotting covariances
 
@@ -42,16 +49,16 @@ def transform_covariance(cov):
     ret = cov.copy()
     rows, cols = cov.shape
     lps = locations_per_segment
-    for r in xrange(rows):
-        for o in xrange(outputs):
+    for r in range(rows):
+        for o in range(outputs):
             ret[r][lps * o:lps * (o + 1)] = cov[r][o::outputs]
     nret = ret.copy()
-    for o in xrange(outputs):
+    for o in range(outputs):
         nret[lps * o:lps * (o + 1)] = ret[o::outputs]
     return nret
 
 plt.figure()
-for i in xrange(lfm_hmm.n):
+for i in range(lfm_hmm.n):
     if (i == 0):
         plt.xlabel("hola")
     plt.subplot(2, 3, i + 1)

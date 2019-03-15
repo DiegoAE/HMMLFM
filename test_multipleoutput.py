@@ -8,12 +8,12 @@ import numpy as np
 seed = np.random.random_integers(100000)
 seed = 75599
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 pi = np.array([0.3, 0.3, 0.4])
-print "initial state distribution", pi
+print("initial state distribution", pi)
 A = np.array([[0.1, 0.5, 0.4], [0.6, 0.1, 0.3], [0.4, 0.5, 0.1]])
-print "hidden state transition matrix\n", A
+print("hidden state transition matrix\n", A)
 
 number_lfm = 3
 outputs = 3
@@ -43,13 +43,13 @@ ax.set_prop_cycle(cycler('color', ['red', 'green', 'blue']))
 segments = 10
 obs_1, hidden_states_obs1 = lfm_hmm.generate_observations(segments)
 last_value = 0
-for i in xrange(segments):
+for i in range(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
     sl = lfm_hmm.sample_locations
     current_obs = obs_1[i]
     current_outputs = np.zeros((locations_per_segment, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = current_obs[j::outputs]
     plt.plot(last_value + sl - sl[0], current_outputs)
     last_value += end_t - start_t
@@ -58,9 +58,9 @@ plt.show()
 obs = []
 n_training_sequences = 10
 hidden_states = np.zeros(n_training_sequences, dtype=object)
-for i in xrange(n_training_sequences):
+for i in range(n_training_sequences):
     segments = np.random.randint(1, 100)
-    print "The %d-th sequence has length %d" % (i, segments)
+    print("The %d-th sequence has length %d" % (i, segments))
     output, hidden = lfm_hmm.generate_observations(segments)
     obs.append(output)
     hidden_states[i] = hidden
@@ -68,11 +68,11 @@ for i in xrange(n_training_sequences):
 lfm_hmm.set_observations(obs)
 lfm_hmm.reset()
 
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
-print "start training"
+print("start training")
 
 train_flag = False
 if train_flag:
@@ -82,24 +82,24 @@ else:
     lfm_hmm.read_params("/home/diego/tmp/Parameters", "FirstMOToy")
 
 
-print "after training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.LFMparams
+print("after training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.LFMparams)
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 regression_observation = obs[0]
 regression_hidden_states = lfm_hmm._viterbi()[0]
 
-print repr(regression_hidden_states)
+print(repr(regression_hidden_states))
 
 considered_segments = min(10, len(regression_observation))
 number_testing_points = 100
 # prediction
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = regression_hidden_states[i]
     c_obv = regression_observation[i]
     # predicting more time steps
@@ -111,12 +111,12 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
     sl = lfm_hmm.sample_locations
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
                     facecolors='none', label=[None, 'observations'][i == 0])
 

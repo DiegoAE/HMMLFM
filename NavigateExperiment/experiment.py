@@ -3,28 +3,29 @@ from hmm.continuous.ICMHMMcontinuousMO import ICMHMMcontinuousMO
 from hmm.continuous.LFMHMMTyingMO import LFMHMMTyingMO
 from matplotlib import pyplot as plt
 import numpy as np
-
+import tempfile
+import os
 
 seed = np.random.random_integers(100000)
 seed = 79861  # LFM
 # seed = 8629  # ICM
 np.random.seed(seed)
-print "USED SEED", seed
+print("USED SEED", seed)
 
 def pick_outputs(input, noutputs, required_outputs):
     output = input.copy()
-    for i in xrange(len(output)):
+    for i in range(len(output)):
         output_idx = []
         total_cols = output[i].shape[1]
         for idx in required_outputs:
-            output_idx.extend(range(idx, total_cols, noutputs))
+            output_idx.extend(list(range(idx, total_cols, noutputs)))
         output_idx.sort()
         output[i] = output[i][:, output_idx]
     return output
 
-input_file = file('mocap_navigate_subject_41_normalized.npz', 'rb')
+input_file = open('mocap_navigate_subject_41_normalized.npz', 'rb')
 # input_file = file('toy_lfm.npz', 'rb')
-data = np.load(input_file)
+data = np.load(input_file, 'rb', encoding='bytes' )
 outputs = data['outputs'].item()
 training_observations = data['training']
 testing_observations = data['test']
@@ -62,44 +63,51 @@ joints_name = ['left tibia', 'right tibia', 'left radius', 'right radius']
 model.set_observations(training_observations)
 # model.read_params("/home/diego/tmp/Parameters/WALKING", "MANUAL_INIT")
 
-print model.pi
-print model.A
-print model.LFMparams
+print(model.pi)
+print(model.A)
+print(model.LFMparams)
 
-print "start training"
+print("start training")
 
-train_flag = False
+train_flag = True #False
+file_temp_path = os.path.join(tempfile.gettempdir(),
+                              os.path.normpath("Parameters/NAVIGATE"))
+if not os.path.exists(file_temp_path):
+    os.makedirs(file_temp_path)
 file_name = "MO_MOCAP_SUBJECT_41_3_forces_6_HS_normalized"
 if train_flag:
-    model.train()
-    model.save_params("/home/diego/tmp/Parameters/NAVIGATE", file_name)
+    model.train() 
+    model.save_params(file_temp_path, file_name)
 else:
-    model.read_params("/home/diego/tmp/Parameters/NAVIGATE", file_name)
+    #
+     model.read_params(file_temp_path,
+                       file_name)
+ #   model.read_params("/home/diego/tmp/Parameters/NAVIGATE", file_name)
 
 
-print "after training"
-print model.pi
-print model.A
+print("after training")
+print(model.pi)
+print(model.A)
 
-print model.LFMparams
+print(model.LFMparams)
 
-print "USED SEED", seed
+print("USED SEED", seed)
 
 viterbi_training =  model._viterbi()
-print "Viterbi"
-print viterbi_training
+print("Viterbi")
+print(viterbi_training)
 
 # Testing data
 
 viterbi_testing = model._viterbi(testing_observations)
-print "Viterbi for testing"
-print viterbi_testing
+print("Viterbi for testing")
+print(viterbi_testing)
 
 # Looking at the resulting fit
 
 number_testing_points = 100
 plt.figure(1)
-for considered_idx in xrange(3):
+for considered_idx in range(3):
     plt.subplot(3, 1, considered_idx + 1)
     last_value = 0
     plt.axvline(x=last_value, color='red', linestyle='--')
@@ -114,7 +122,7 @@ for considered_idx in xrange(3):
             considered_idx - np.size(training_observations)]
         current_observation = testing_observations[
             considered_idx - np.size(training_observations)]
-    for i in xrange(considered_segments):
+    for i in range(considered_segments):
         c_hidden_state = regression_hidden_states[i]
         # plt.text(1 + i * 20 - i, .75, r'$z_{%d}=%d$' % (i, c_hidden_state),
         #          fontsize=23)
@@ -128,7 +136,7 @@ for considered_idx in xrange(3):
         current_outputs = np.zeros((number_testing_points, outputs))
         current_covariances = np.zeros((number_testing_points, outputs))
         # separating the outputs accordingly.
-        for j in xrange(outputs):
+        for j in range(outputs):
             current_outputs[:, j] = mean_pred[j::outputs]
             current_covariances[:, j] = cov_pred[j::outputs]
 
@@ -140,13 +148,13 @@ for considered_idx in xrange(3):
 
         obs_plotting_locations = last_value + np.linspace(
                 0, model.locations_per_segment - 1, model.locations_per_segment)
-        for j in xrange(outputs):
+        for j in range(outputs):
             plt.scatter(obs_plotting_locations, c_obv[j::outputs],
                         color=colors_cycle[j],
                         label=[None, joints_name[j]][i == 0])
         test_plotting_locations = last_value + np.linspace(
                 0, model.locations_per_segment - 1, number_testing_points)
-        for j in xrange(outputs):
+        for j in range(outputs):
             plt.plot(test_plotting_locations, current_outputs[:, j],
                      color=colors_cycle[j])
             lower_trajectory = current_outputs[:, j] - \

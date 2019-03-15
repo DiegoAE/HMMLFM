@@ -7,9 +7,9 @@ from matplotlib import pyplot as plt
 #np.random.seed(200)
 
 pi = np.array([0.3, 0.3, 0.4])
-print "initial state distribution", pi
+print("initial state distribution", pi)
 A = np.array([[0.1, 0.5, 0.4], [0.6, 0.1, 0.3], [0.4, 0.5, 0.1]])
-print "hidden state transition matrix\n", A
+print("hidden state transition matrix\n", A)
 
 number_lfm = 3
 outputs = 1
@@ -34,7 +34,7 @@ lfm_hmm.set_params(A, pi, damper_constants, spring_constants, lengthscales,
 segments = 10
 obs_1, _ = lfm_hmm.generate_observations(segments)
 last_value = 0
-for i in xrange(segments):
+for i in range(segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
     sl = lfm_hmm.sample_locations
     plt.plot(last_value + sl - sl[0], obs_1[i])

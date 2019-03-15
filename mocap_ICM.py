@@ -7,13 +7,13 @@ import numpy as np
 seed = np.random.random_integers(10000)
 np.random.seed(seed)
 
-print "Using GPy version: ", GPy.__version__
+print("Using GPy version: ", GPy.__version__)
 
 data = GPy.util.datasets.cmu_mocap('05', ['20'], sample_every=1)
-print data['info']
+print(data['info'])
 Y = data['Y']
 nsamples, nfeatures = Y.shape
-print "Y's shape ", Y.shape
+print("Y's shape ", Y.shape)
 
 
 channel_ids = [9, 16]  # ltibia and rtibia
@@ -34,23 +34,23 @@ lfm_hmm = ICMHMMcontinuousMO(outputs, number_hidden_states, locations_per_segmen
 
 number_training_sequences = 1
 obs = []
-for s in xrange(number_training_sequences):
+for s in range(number_training_sequences):
     number_segments = 55  # fixed for now.
     c_obs = np.zeros((number_segments, locations_per_segment * outputs))
-    for output_id in xrange(outputs):
+    for output_id in range(outputs):
         signal = Y[:, channel_ids[output_id]]
         idx = 0
-        for i in xrange(number_segments):
+        for i in range(number_segments):
             c_obs[i, output_id::outputs] = signal[idx:idx + locations_per_segment]
             idx = idx + locations_per_segment - 1
     obs.append(c_obs)
 
 lfm_hmm.set_observations(obs)
 
-print "before training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.ICMparams
+print("before training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.ICMparams)
 
 train_flag = False
 file = "second-ICM-MOCAP-MO"
@@ -60,10 +60,10 @@ if train_flag:
 else:
     lfm_hmm.read_params("/home/diego/tmp/Parameters/MOCAP", file)
 
-print "after training"
-print lfm_hmm.pi
-print lfm_hmm.A
-print lfm_hmm.ICMparams
+print("after training")
+print(lfm_hmm.pi)
+print(lfm_hmm.A)
+print(lfm_hmm.ICMparams)
 
 
 obs_1 = obs[0]
@@ -74,7 +74,7 @@ number_testing_points = 100
 # prediction
 last_value = 0
 plt.axvline(x=last_value, color='red', linestyle='--')
-for i in xrange(considered_segments):
+for i in range(considered_segments):
     c_hidden_state = hidden_states_1[i]
     c_obv = obs_1[i]
     # predicting more time steps
@@ -86,12 +86,12 @@ for i in xrange(considered_segments):
     current_outputs = np.zeros((number_testing_points, outputs))
     current_covariances = np.zeros((number_testing_points, outputs))
     # separating the outputs accordingly.
-    for j in xrange(outputs):
+    for j in range(outputs):
         current_outputs[:, j] = mean_pred[j::outputs]
         current_covariances[:, j] = cov_pred[j::outputs]
 
     sl = lfm_hmm.sample_locations
-    for j in xrange(outputs):
+    for j in range(outputs):
         plt.scatter(last_value + sl - sl[0], c_obv[j::outputs],
                     facecolors='none', label=[None, 'observations'][i == 0])
 
@@ -106,5 +106,5 @@ for i in xrange(considered_segments):
     plt.axvline(x=last_value, color='red', linestyle='--')
 plt.show()
 
-print "Inferred hidden states ", hidden_states_1
-print "USED SEED", seed
+print("Inferred hidden states ", hidden_states_1)
+print("USED SEED", seed)
